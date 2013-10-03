@@ -44,6 +44,10 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
     sysRuns = get_monotonic_subsequences(systolic, 3)
     HRRuns = get_monotonic_subsequences(HR, 3)
 
+    for HRRun in HRRuns:
+        for sysRun in sysRuns:
+            for HR in HRRun:
+
 
 
 
