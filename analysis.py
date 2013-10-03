@@ -47,6 +47,7 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
     for HRRun in HRRuns:
         for sysRun in sysRuns:
             for HR in HRRun:
+                for sys in sysRun:
 
 
 
