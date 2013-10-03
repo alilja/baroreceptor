@@ -48,6 +48,11 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
         for sysRun in sysRuns:
             for HR in HRRun:
                 for sys in sysRun:
+                    """ ok calculate the derivitive for both each time 
+                 you get a point of data. compare them, if they're equal then 
+                 increment a counter somewhere, if not make it = 0. find out 
+                 how long you need to have the two be "the same" for, and then 
+                 set that against your count"""
 
 
 
