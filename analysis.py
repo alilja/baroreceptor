@@ -35,14 +35,29 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
         if(lineNum > 1): #skip the headers
             if(line[5] != str(HR[-1])):
                 HR.append(float(line[5]))
-            if(line[4] != systolic[-1]):
+            if(line[4] != str(systolic[-1])):
                 systolic.append(float(line[4]))
 
         lineNum += 1
-    f.close()
+    f.close()  
 
-    sysRuns = get_monotonic_subsequences(systolic, 3)
-    HRRuns = get_monotonic_subsequences(HR, 3)
+    print(len(systolic))
+    print(len(HR))
+
+    count = 0
+
+    for i in range(0, len(HR)-1):
+        sysDiff = systolic[i+1] - systolic[i]
+        HRDiff = HR[i+1] - HR[i]
+
+        if(sysDiff * HRDiff > 0): #moving in the same direction
+            print("same d")
+
+
+
+
+
+
 
 
 
