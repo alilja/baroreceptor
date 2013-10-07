@@ -22,7 +22,7 @@ def readCSVFile(fileName):
     return (systolic, HR)  
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
-def findMatchingRuns(systolic, HR, clusterWidth = 3, lag = 1):
+def findMatchingRuns(systolic, HR, clusterWidth = 3, lag = 0):
     """Takes two lists of numbers and determines when they are both moving
     in the same direction; that is, when they are both increasing at the same
     time or both decreasing at the same time. Example:
@@ -45,16 +45,15 @@ def findMatchingRuns(systolic, HR, clusterWidth = 3, lag = 1):
     direction = 0
     for i in range(1, len(systolic)):
         sysDiff = systolic[i] - systolic[i - 1]
-        HRDiff = HR[i] - HR[i - 1]
+        HRDiff = HR[i + lag] - HR[i + lag - 1]
 
         if(HRDiff > 0 and sysDiff > 0):
             if(direction >= 0):
                 count += 1
                 direction = 1
             else:
-                if(count >= 0):
-                    runs.append([i - count - 1, i - 1, count, direction])
-                    count = 0
+                runs.append([i - count - 1, i - 1, count, direction])
+                count = 0
                 direction = 1
                 count = 1
         elif(HRDiff < 0 and sysDiff < 0):
@@ -62,27 +61,25 @@ def findMatchingRuns(systolic, HR, clusterWidth = 3, lag = 1):
                 count += 1
                 direction = -1
             else:
-                if(count >= 0):
-                    runs.append([i - count - 1, i - 1, count, direction])
-                    count = 0
+                runs.append([i - count - 1, i - 1, count, direction])
+                count = 0
                 direction = -1
                 count = 1
         elif(HRDiff == 0 and sysDiff == 0):
             count +=1 
         else:
-            if(count >= 0):
-                runs.append([i - count - 1, i - 1, count, direction])
-                count = 0
+            runs.append([i - count - 1, i - 1, count, direction])
+            count = 0
 
 
 
     return [r for r in runs if r[2] >= clusterWidth]
 
 data = readCSVFile("testData.csv")
+runs = findMatchingRuns(data[0],data[1], 2, 1)
 
-
-runs = findMatchingRuns(data[0],data[1])
 print(runs)
+
 for run in runs:
     runStart = run[0]
     runEnd = run[1]
