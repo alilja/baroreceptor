@@ -1,28 +1,5 @@
 import csv
 
-def get_monotonic_subsequences(data, min_length=3):
-    direction = data[1] - data[0]  # determine direction of initial subsequence
-    subsequences = []
-    cur_seq = [data[0]]
-    for i in range(1, len(data)):
-        if direction > 0:
-            if data[i] >= data[i - 1]:
-                cur_seq.append((i,data[i]))
-            else:
-                subsequences.append(cur_seq)
-                cur_seq = [(i, data[i])]
-                direction = -1
-        else:
-            if data[i] <= data[i - 1]:
-                cur_seq.append((i,data[i]))
-            else:
-                subsequences.append(cur_seq)
-                cur_seq = [(i, data[i])]
-                direction = -1
-
-    subsequences.append(cur_seq)
-    return [x for x in subsequences if len(x) >= min_length]
-
 def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
     f = open(fileName,"r")
     reader = csv.reader(f)
@@ -45,45 +22,42 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
     print(len(HR))
 
     runs = []
-    currentRun = []
-    start = -1
+    count = 0
     direction = 0
+    for i in range(1, len(systolic)):
+        sysDiff = systolic[i] - systolic[i - 1]
+        HRDiff = HR[i] - HR[i - 1]
 
-    for i in range(0, len(systolic)-1):
-        sysDiff = systolic[i+1] - systolic[i]
-        HRDiff = HR[i+1] - HR[i]
-
-        if(sysDiff < 0 and HRDiff < 0): #decreasing
-            if(start != -1):
-                if(direction != 1): #then we've already started but it's in the increasing direction
-                                    #time to end the current run and start a new one
-                    start = i
-                    direction = -1
-                    currentRun.append(i)
-                    runs.append(currentRun)
-                    currentRun = []
-                else:
-                    currentRun.append(i)
+        if(HRDiff > 0 and sysDiff > 0):
+            if(direction >= 0):
+                count += 1
+                direction = 1
             else:
-                start = i
+                if(count >= 0):
+                    runs.append([i - count - 1, i - 1, count, direction])
+                    count = 0
+                direction = 1
+                count = 1
+        elif(HRDiff < 0 and sysDiff < 0):
+            if(direction <= 0):
+                count += 1
                 direction = -1
-                currentRun = [i]
-
-
-    print(runs)
-
-
-
-
-
-
-
-
-
-
-
-
+            else:
+                if(count >= 0):
+                    runs.append([i - count - 1, i - 1, count, direction])
+                    count = 0
+                direction = -1
+                count = 1
+        elif(HRDiff == 0 and sysDiff == 0):
+            count +=1 
+        else:
+            if(count >= 0):
+                runs.append([i - count - 1, i - 1, count, direction])
+                count = 0
+        print(str(i)+": "+str(direction))
 
 
 
-baroAnalysis("testData.csv")
+    return [r for r in runs if r[2] >= clusterWidth]
+
+print(baroAnalysis("testData.csv"))
