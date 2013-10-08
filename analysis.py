@@ -3,7 +3,7 @@ import csv
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
 def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     f = open(fileName,"r")
-    reader = csv.reader(f)
+    reader = csv.reader(f,delimiter="\t")
 
     HR = [0]
     SBP = [0]
@@ -19,10 +19,11 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
             print("HR index: "+str(HRIndex))
             print("SBPIndex: "+str(SBPIndex))
         if(lineNum > headerLength): #skip the headers
+            #print(line)
             if(float(line[HRIndex]) != HR[-1]):
-                HR.append(float(line[5]))
+                HR.append(float(line[HRIndex]))
             if(float(line[SBPIndex]) != SBP[-1]):
-                SBP.append(float(line[4]))
+                SBP.append(float(line[SBPIndex]))
 
         lineNum += 1
     f.close()
@@ -47,6 +48,9 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
 
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
+
+    print(len(HR))
+    print(len(SBP))
 
     runs = []
     count = 0
@@ -82,10 +86,10 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
 
 
 
-data = readCSVFile("testData.csv", 32)
+data = readCSVFile("davis cold pressor0000.csv", 32)
 runs = findMatchingRuns(data[0],data[1], 2, 1)
 
-print(runs)
+print(runs[0:10])
 
 for run in runs:
     runStart = run[0]
@@ -98,6 +102,6 @@ for run in runs:
         if(i == runStart or i == runEnd):
             out += "> "
         out += str(data[0][i]) + "    " + str(data[1][i])
-        print(out)
+        #print(out)
 
-    print("\n\n")
+    #print("\n\n")
