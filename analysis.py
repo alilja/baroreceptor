@@ -12,12 +12,18 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     SBPIndex = 0
 
     lineNum = 0
+
+    runs = []
+    currentRun = {"HR":[],"SBP":[]}
+    direction = 0
+
     for line in reader:
         if("CH"+str(HRChannel) in line):
             HRIndex = line.index("CH"+str(HRChannel))
             SBPIndex = line.index("CH"+str(SBPChannel))
             print("HR index: "+str(HRIndex))
             print("SBPIndex: "+str(SBPIndex))
+
         if(lineNum > headerLength): #skip the headers
             if(float(line[HRIndex]) != HR[-1]):
                 HR.append(float(line[HRIndex]))
@@ -55,7 +61,7 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
     print(len(SBP))
 
     runs = []
-    count = 0
+    currentRun = {}
     direction = 0
     for i in range(1, len(SBP)):
         SBPDiff = SBP[i] - SBP[i - 1]
@@ -63,28 +69,32 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
 
         if(HRDiff > 0 and SBPDiff > 0):
             if(direction >= 0):
-                count += 1
+                currentRun["HR"].append(HR[i])
+                currentRun["SBP"].append(SBP[i])
                 direction = 1
             else:
-                runs.append([i - count - 1, i - 1, count, direction])
-                count = 0
+                runs.append(currentRun)
+                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
                 direction = 1
-                count = 1
         elif(HRDiff < 0 and SBPDiff < 0):
             if(direction <= 0):
-                count += 1
+                currentRun["HR"].append(HR[i])
+                currentRun["SBP"].append(SBP[i])
                 direction = -1
             else:
-                runs.append([i - count - 1, i - 1, count, direction])
-                count = 0
+                #print(currentRun)
+                runs.append(currentRun)
+                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
                 direction = -1
-                count = 1
         elif(HRDiff == 0 and SBPDiff == 0):
-            count +=1 
+            currentRun["HR"].append(HR[i])
+            currentRun["SBP"].append(SBP[i])
         else:
-            runs.append([i - count - 1, i - 1, count, direction])
-            count = 0
-    return [r for r in runs if r[2] >= clusterWidth]
+            #print(currentRun)
+            runs.append(currentRun)
+            currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+
+    return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
 
 
 
