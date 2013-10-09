@@ -19,7 +19,6 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
             print("HR index: "+str(HRIndex))
             print("SBPIndex: "+str(SBPIndex))
         if(lineNum > headerLength): #skip the headers
-            #print(line)
             if(float(line[HRIndex]) != HR[-1]):
                 HR.append(float(line[HRIndex]))
             if(float(line[SBPIndex]) != SBP[-1]):
@@ -29,6 +28,8 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     f.close()
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, HR)  
+
+## Combine these two functions so that all the data processing is done online
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
