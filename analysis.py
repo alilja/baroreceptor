@@ -1,5 +1,18 @@
 import csv
 
+def pearsonR(x, y):
+    # Assume len(x) == len(y)
+    n = len(x)
+    sum_x = float(sum(x))
+    sum_y = float(sum(y))
+    sum_x_sq = sum(map(lambda x: pow(x, 2), x))
+    sum_y_sq = sum(map(lambda x: pow(x, 2), y))
+    psum = sum(map(lambda x, y: x * y, x, y))
+    num = psum - (sum_x * sum_y/n)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    if den == 0: return 0
+    return num / den
+
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
 def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     f = open(fileName,"r")
@@ -93,18 +106,20 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
             #print(currentRun)
             runs.append(currentRun)
             currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
-
     return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
 
+#findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
+def findCorrelatedRuns(runs, minCorrelation = 0.85):
+    return [run for run in runs if pearsonR(run["SBP"], run["HR"]) > minCorrelation]
 
 
 data = readCSVFile("davis cold pressor0000.csv", 32)
-runs = findMatchingRuns(data[0],data[1], 2, 1)
+runs = findMatchingRuns(data[0],data[1], 3, 1)
+correlatedRuns = findCorrelatedRuns(runs, .95)
 
 # http://stackoverflow.com/questions/17978254/writing-a-csv-horizontally
 
-print(runs[0:10])
-
-output = "HR, SBP\n"
+#to-do: add csv production
+#you're gunna have to do it horizontally to make it work nicely in excel... good luck with that
 
 
