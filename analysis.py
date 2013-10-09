@@ -29,7 +29,8 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, HR)  
 
-## Combine these two functions so that all the data processing is done online
+## Combine these two functions so that all the data processing is done online ##
+## Going to need two items at a time. Good luck & godspeed. ##
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
