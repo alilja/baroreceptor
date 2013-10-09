@@ -101,19 +101,10 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
 data = readCSVFile("davis cold pressor0000.csv", 32)
 runs = findMatchingRuns(data[0],data[1], 2, 1)
 
+# http://stackoverflow.com/questions/17978254/writing-a-csv-horizontally
+
 print(runs[0:10])
 
-for run in runs:
-    runStart = run[0]
-    runEnd = run[1]
-    runLength = run[2]
-    runDirection = run[3]
+output = "HR, SBP\n"
 
-    for i in range(runStart - 3, runEnd + 3):
-        out = ""
-        if(i == runStart or i == runEnd):
-            out += "> "
-        out += str(data[0][i]) + "    " + str(data[1][i])
-        #print(out)
 
-    #print("\n\n")
