@@ -34,7 +34,7 @@ def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
         if("CH"+str(HRChannel) in line):
             HRIndex = line.index("CH"+str(HRChannel))
             SBPIndex = line.index("CH"+str(SBPChannel))
-            print("HR index: "+str(HRIndex))
+            print("HRIndex: "+str(HRIndex))
             print("SBPIndex: "+str(SBPIndex))
 
         if(lineNum > headerLength): #skip the headers
@@ -70,8 +70,8 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
 
-    print(len(HR))
-    print(len(SBP))
+    print("HR length: "+str(len(HR)))
+    print("SBP length: "+str(len(SBP)))
 
     runs = []
     currentRun = {}
