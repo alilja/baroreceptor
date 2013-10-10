@@ -117,9 +117,9 @@ data = readCSVFile("davis cold pressor0000.csv", 32)
 runs = findMatchingRuns(data[0],data[1], 3, 1)
 correlatedRuns = findCorrelatedRuns(runs, .95)
 
+print(correlatedRuns)
+
 # http://stackoverflow.com/questions/17978254/writing-a-csv-horizontally
 
 #to-do: add csv production
 #you're gunna have to do it horizontally to make it work nicely in excel... good luck with that
-
-
