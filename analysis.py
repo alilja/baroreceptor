@@ -1,93 +1,125 @@
 import csv
 
-def get_monotonic_subsequences(data, min_length=3):
-    direction = data[1] - data[0]  # determine direction of initial subsequence
-    subsequences = []
-    cur_seq = [data[0]]
-    for i in range(1, len(data)):
-        if direction > 0:
-            if data[i] >= data[i - 1]:
-                cur_seq.append((i,data[i]))
-            else:
-                subsequences.append(cur_seq)
-                cur_seq = [(i, data[i])]
-                direction = -1
-        else:
-            if data[i] <= data[i - 1]:
-                cur_seq.append((i,data[i]))
-            else:
-                subsequences.append(cur_seq)
-                cur_seq = [(i, data[i])]
-                direction = -1
+def pearsonR(x, y):
+    # Assume len(x) == len(y)
+    n = len(x)
+    sum_x = float(sum(x))
+    sum_y = float(sum(y))
+    sum_x_sq = sum(map(lambda x: pow(x, 2), x))
+    sum_y_sq = sum(map(lambda x: pow(x, 2), y))
+    psum = sum(map(lambda x, y: x * y, x, y))
+    num = psum - (sum_x * sum_y/n)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    if den == 0: return 0
+    return num / den
 
-    subsequences.append(cur_seq)
-    return [x for x in subsequences if len(x) >= min_length]
-
-def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
+#readCSVFile: str, int, int, int --> tuple-of-list-of-num
+def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
     f = open(fileName,"r")
-    reader = csv.reader(f)
+    reader = csv.reader(f,delimiter="\t")
 
     HR = [0]
-    systolic = [0]
+    SBP = [0]
+
+    HRIndex = 0
+    SBPIndex = 0
 
     lineNum = 0
-    for line in reader:
-        if(lineNum > 1): #skip the headers
-            if(float(line[5]) != HR[-1]):
-                HR.append(float(line[5]))
-            if(float(line[4]) != systolic[-1]):
-                systolic.append(float(line[4]))
-
-        lineNum += 1
-    f.close()  
-
-    print(systolic[:5])
-    print(HR[:5])
 
     runs = []
-    currentRun = [systolic[0]]
-    start = -1
+    currentRun = {"HR":[],"SBP":[]}
     direction = 0
 
-    for i in range(0, len(systolic)-1):
-        sysDiff = systolic[i+1] - systolic[i]
-        HRDiff = HR[i+1] - HR[i]
+    for line in reader:
+        if("CH"+str(HRChannel) in line):
+            HRIndex = line.index("CH"+str(HRChannel))
+            SBPIndex = line.index("CH"+str(SBPChannel))
+            print("HRIndex: "+str(HRIndex))
+            print("SBPIndex: "+str(SBPIndex))
 
-        if(direction > 0):
-            if(sysDiff >= 0 and HRDiff >= 0): #decreasing
-                currentRun.append(systolic[i])
-            else:
-                runs.append(currentRun)
-                currentRun = [systolic[i]]
-                direction = -1
-        else:
-            if(sysDiff <= 0 and HRDiff <= 0): #decreasing
-                currentRun.append(systolic[i])
-            else:
-                runs.append(currentRun)
-                currentRun = [systolic[i]]
+        if(lineNum > headerLength): #skip the headers
+            if(float(line[HRIndex]) != HR[-1]):
+                HR.append(float(line[HRIndex]))
+            if(float(line[SBPIndex]) != SBP[-1]):
+                SBP.append(float(line[SBPIndex]))
+
+        lineNum += 1
+    f.close()
+    print("Finished analyzing file \""+fileName+"\"")
+    return (SBP, HR)  
+
+## Combine these two functions so that all the data processing is done online ##
+## Going to need two items at a time. Good luck & godspeed. ##
+
+#findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
+def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
+    """Takes two lists of numbers and determines when they are both moving
+    in the same direction; that is, when they are both increasing at the same
+    time or both decreasing at the same time. Example:
+
+        a = [0,1,2, 3,4,5,1,0,9, 8]
+        b = [1,4,9,13,0,3,2,0,11,14]
+
+    The function will find the indices 0:3, 4:5, 5:7, and 7:8. It will also
+    determine the length and direction. Output is in the form of lists:
+
+        [runStart, runEnd, runLength, runDirection]
+
+    Direction is either +1 or -1.
+
+    clusterWidth is the minimum length of each run. lag is the difference
+    in offset between the second list and the first list."""
+
+    print("HR length: "+str(len(HR)))
+    print("SBP length: "+str(len(SBP)))
+
+    runs = []
+    currentRun = {}
+    direction = 0
+    for i in range(1, len(SBP)):
+        SBPDiff = SBP[i] - SBP[i - 1]
+        HRDiff = HR[i + lag] - HR[i + lag - 1]
+
+        if(HRDiff > 0 and SBPDiff > 0):
+            if(direction >= 0):
+                currentRun["HR"].append(HR[i])
+                currentRun["SBP"].append(SBP[i])
                 direction = 1
+            else:
+                runs.append(currentRun)
+                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+                direction = 1
+        elif(HRDiff < 0 and SBPDiff < 0):
+            if(direction <= 0):
+                currentRun["HR"].append(HR[i])
+                currentRun["SBP"].append(SBP[i])
+                direction = -1
+            else:
+                #print(currentRun)
+                runs.append(currentRun)
+                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+                direction = -1
+        elif(HRDiff == 0 and SBPDiff == 0):
+            currentRun["HR"].append(HR[i])
+            currentRun["SBP"].append(SBP[i])
+        else:
+            #print(currentRun)
+            runs.append(currentRun)
+            currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+    return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
 
-    runs.append(currentRun)
-    runs = [x for x in runs if len(x) >= clusterWidth]
-
-    
-
-
-    print(runs)
+#findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
+def findCorrelatedRuns(runs, minCorrelation = 0.85):
+    return [run for run in runs if pearsonR(run["SBP"], run["HR"]) > minCorrelation]
 
 
+data = readCSVFile("davis cold pressor0000.csv", 32)
+runs = findMatchingRuns(data[0],data[1], 3, 1)
+correlatedRuns = findCorrelatedRuns(runs, .95)
 
+print(correlatedRuns)
 
+# http://stackoverflow.com/questions/17978254/writing-a-csv-horizontally
 
-
-
-
-
-
-
-
-
-
-
-baroAnalysis("testData.csv")
+#to-do: add csv production
+#you're gunna have to do it horizontally to make it work nicely in excel... good luck with that
