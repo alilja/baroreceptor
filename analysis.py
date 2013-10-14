@@ -41,11 +41,11 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
         lineNum += 1
     f.close()  
 
-    print(len(systolic))
-    print(len(HR))
+    print(systolic[:5])
+    print(HR[:5])
 
     runs = []
-    currentRun = []
+    currentRun = [systolic[0]]
     start = -1
     direction = 0
 
@@ -53,21 +53,25 @@ def baroAnalysis(fileName, clusterWidth = 3, lag = 1):
         sysDiff = systolic[i+1] - systolic[i]
         HRDiff = HR[i+1] - HR[i]
 
-        if(sysDiff < 0 and HRDiff < 0): #decreasing
-            if(start != -1):
-                if(direction != 1): #then we've already started but it's in the increasing direction
-                                    #time to end the current run and start a new one
-                    start = i
-                    direction = -1
-                    currentRun.append(i)
-                    runs.append(currentRun)
-                    currentRun = []
-                else:
-                    currentRun.append(i)
+        if(direction > 0):
+            if(sysDiff >= 0 and HRDiff >= 0): #decreasing
+                currentRun.append(systolic[i])
             else:
-                start = i
+                runs.append(currentRun)
+                currentRun = [systolic[i]]
                 direction = -1
-                currentRun = [i]
+        else:
+            if(sysDiff <= 0 and HRDiff <= 0): #decreasing
+                currentRun.append(systolic[i])
+            else:
+                runs.append(currentRun)
+                currentRun = [systolic[i]]
+                direction = 1
+
+    runs.append(currentRun)
+    runs = [x for x in runs if len(x) >= clusterWidth]
+
+    
 
 
     print(runs)
