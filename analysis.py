@@ -74,7 +74,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     print("SBP length: "+str(len(SBP)))
 
     runs = []
-    currentRun = {}
+    currentRun = {"RR":[],"SBP":[]}
     direction = 0
     for i in range(1, len(SBP)):
         SBPDiff = SBP[i] - SBP[i - 1]
@@ -114,7 +114,18 @@ def findCorrelatedRuns(runs, minCorrelation = 0.85):
 
 
 data = readCSVFile("davis cold pressor0000.csv", 32)
-runs = findMatchingRuns(data[0],data[1], 3, 1)
+
+f = open("davisColdPressorRR.csv")
+reader = csv.reader(f)
+lineNum = 0
+davisRR = []
+for line in reader:
+    if(lineNum > 3):
+        davisRR.append(float(line[0]))
+    lineNum += 1
+f.close()
+
+runs = findMatchingRuns(data[0],davisRR, 3, 1)
 correlatedRuns = findCorrelatedRuns(runs, .95)
 
 print(correlatedRuns)
