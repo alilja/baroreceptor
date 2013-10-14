@@ -14,45 +14,45 @@ def pearsonR(x, y):
     return num / den
 
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, HRChannel = 42, SBPChannel = 40):
+def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40):
     f = open(fileName,"r")
     reader = csv.reader(f,delimiter="\t")
 
-    HR = [0]
+    RR = [0]
     SBP = [0]
 
-    HRIndex = 0
+    RRIndex = 0
     SBPIndex = 0
 
     lineNum = 0
 
     runs = []
-    currentRun = {"HR":[],"SBP":[]}
+    currentRun = {"RR":[],"SBP":[]}
     direction = 0
 
     for line in reader:
-        if("CH"+str(HRChannel) in line):
-            HRIndex = line.index("CH"+str(HRChannel))
+        if("CH"+str(RRChannel) in line):
+            RRIndex = line.index("CH"+str(RRChannel))
             SBPIndex = line.index("CH"+str(SBPChannel))
-            print("HRIndex: "+str(HRIndex))
+            print("RRIndex: "+str(RRIndex))
             print("SBPIndex: "+str(SBPIndex))
 
         if(lineNum > headerLength): #skip the headers
-            if(float(line[HRIndex]) != HR[-1]):
-                HR.append(float(line[HRIndex]))
+            if(float(line[RRIndex]) != RR[-1]):
+                RR.append(float(line[RRIndex]))
             if(float(line[SBPIndex]) != SBP[-1]):
                 SBP.append(float(line[SBPIndex]))
 
         lineNum += 1
     f.close()
     print("Finished analyzing file \""+fileName+"\"")
-    return (SBP, HR)  
+    return (SBP, RR)  
 
 ## Combine these two functions so that all the data processing is done online ##
 ## Going to need two items at a time. Good luck & godspeed. ##
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
-def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
+def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     """Takes two lists of numbers and determines when they are both moving
     in the same direction; that is, when they are both increasing at the same
     time or both decreasing at the same time. Example:
@@ -70,7 +70,7 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
 
-    print("HR length: "+str(len(HR)))
+    print("RR length: "+str(len(RR)))
     print("SBP length: "+str(len(SBP)))
 
     runs = []
@@ -78,39 +78,39 @@ def findMatchingRuns(SBP, HR, clusterWidth = 3, lag = 0):
     direction = 0
     for i in range(1, len(SBP)):
         SBPDiff = SBP[i] - SBP[i - 1]
-        HRDiff = HR[i + lag] - HR[i + lag - 1]
+        RRDiff = RR[i + lag] - RR[i + lag - 1]
 
-        if(HRDiff > 0 and SBPDiff > 0):
+        if(RRDiff > 0 and SBPDiff > 0):
             if(direction >= 0):
-                currentRun["HR"].append(HR[i])
+                currentRun["RR"].append(RR[i])
                 currentRun["SBP"].append(SBP[i])
                 direction = 1
             else:
                 runs.append(currentRun)
-                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
                 direction = 1
-        elif(HRDiff < 0 and SBPDiff < 0):
+        elif(RRDiff < 0 and SBPDiff < 0):
             if(direction <= 0):
-                currentRun["HR"].append(HR[i])
+                currentRun["RR"].append(RR[i])
                 currentRun["SBP"].append(SBP[i])
                 direction = -1
             else:
                 #print(currentRun)
                 runs.append(currentRun)
-                currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
                 direction = -1
-        elif(HRDiff == 0 and SBPDiff == 0):
-            currentRun["HR"].append(HR[i])
+        elif(RRDiff == 0 and SBPDiff == 0):
+            currentRun["RR"].append(RR[i])
             currentRun["SBP"].append(SBP[i])
         else:
             #print(currentRun)
             runs.append(currentRun)
-            currentRun = {"HR":[HR[i]], "SBP":[SBP[i]]}
+            currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
     return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
 def findCorrelatedRuns(runs, minCorrelation = 0.85):
-    return [run for run in runs if pearsonR(run["SBP"], run["HR"]) > minCorrelation]
+    return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
 
 data = readCSVFile("davis cold pressor0000.csv", 32)
@@ -119,7 +119,12 @@ correlatedRuns = findCorrelatedRuns(runs, .95)
 
 print(correlatedRuns)
 
-# http://stackoverflow.com/questions/17978254/writing-a-csv-horizontally
-
-#to-do: add csv production
-#you're gunna have to do it horizontally to make it work nicely in excel... good luck with that
+f = open("CSVOutput.csv","w")
+output = "SBP, RR\n"
+for run in correlatedRuns:
+    zippedPairs = zip(run["SBP"], run["RR"])
+    for pair in zippedPairs:
+        output += str(pair[0]) + ", " + str(pair[1]) + "\n"
+    output += ",\n"
+f.write(output)
+f.close()
