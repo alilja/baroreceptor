@@ -45,11 +45,9 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40, ECG
         if(lineNum > headerLength): #skip the headers
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
-                    ECGGrabLine = lineNum + 50
+                    ECGGrabLine = lineNum + round(float(line[ECGIndex]))
                     grabNewLine = False
-            
 
-            
             if(lineNum == ECGGrabLine):
                 RR.append(float(line[RRIndex]))
                 grabNewLine = True
