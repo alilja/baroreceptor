@@ -13,8 +13,10 @@ def pearsonR(x, y):
     if den == 0: return 0
     return num / den
 
+# channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
+
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40):
+def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40, ECGChannel = 14, ECGFilter = 2):
     f = open(fileName,"r")
     reader = csv.reader(f,delimiter="\t")
 
@@ -23,28 +25,37 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40):
 
     RRIndex = 0
     SBPIndex = 0
+    ECGIndex = 0
 
-    lineNum = 0
+    ECGGrabLine = -1
+    grabNewLine = True
 
-    runs = []
-    currentRun = {"RR":[],"SBP":[]}
-    direction = 0
+    lineNum = -1
 
     for line in reader:
+        lineNum += 1
         if("CH"+str(RRChannel) in line):
             RRIndex = line.index("CH"+str(RRChannel))
-            SBPIndex = line.index("CH"+str(SBPChannel))
             print("RRIndex: "+str(RRIndex))
+            SBPIndex = line.index("CH"+str(SBPChannel))
             print("SBPIndex: "+str(SBPIndex))
+            ECGIndex = line.index("CH"+str(ECGChannel))
+            print("ECGIndex: "+str(ECGIndex))
 
         if(lineNum > headerLength): #skip the headers
-            if(float(line[RRIndex]) != RR[-1]):
-                RR.append(float(line[RRIndex]))
-            if(float(line[SBPIndex]) != SBP[-1]):
-                SBP.append(float(line[SBPIndex]))
+            if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
+                if(grabNewLine):      #make sure we haven't already grabbed a number
+                    ECGGrabLine = lineNum + 50
+                    grabNewLine = False
+            
 
-        lineNum += 1
+            
+            if(lineNum == ECGGrabLine):
+                RR.append(float(line[RRIndex]))
+                grabNewLine = True
+
     f.close()
+    print("RR: "+str(RR))
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, RR)  
 
@@ -113,7 +124,7 @@ def findCorrelatedRuns(runs, minCorrelation = 0.85):
     return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
 
-data = readCSVFile("davis cold pressor0000.csv", 32)
+data = readCSVFile("davis cold pressor0000.csv", 33)
 
 f = open("davisColdPressorRR.csv")
 reader = csv.reader(f)
