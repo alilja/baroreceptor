@@ -1,10 +1,46 @@
-import csv,sys
+import csv,sys,getopt
 
 _verbose = False
-if(len(sys.argv) > 1):
-    if(sys.argv[1] == "-v"):
-        _verbose = True
+_fileName = "davis cold pressor0000.csv"
+_headerLength = 33
+_RR = "CH42"
+_SBP = "CH40"
+_ECG = "CH14"
+_filter = 1.5
+_pearson = 0.85
+_width = 3
+_lag = 0
 
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=","header=","rrchannel=","sbpchannel=","ecgchannel=","ecgfilter=","pearsonr=","clusterwidth=","lag="])
+except getopt.GetoptError:
+    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+        sys.exit()
+    elif opt == '-v':
+        _verbose = True
+    elif opt in ("-i", "--input"):
+        _fileName = arg
+    elif opt in ("-d", "--header"):
+        _headerLength = int(arg)
+    elif opt in ("-r", "--rrchannel"):
+        _RR = arg
+    elif opt in ("-s", "--sbpchannel"):
+        _SBP = arg
+    elif opt in ("-e", "--ecgchannel"):
+        _ECG = arg
+    elif opt in ("-f", "--ecgfilter"):
+        _filter = float(arg)
+    elif opt in ("-p", "--pearsonr"):
+        _pearson = float(arg)
+    elif opt in ("-w", "--clusterwidth"):
+        _width = int(arg)
+    elif opt in ("-l", "--lag"):
+        _lag = int(arg)
+    
 def pearsonR(x, y):
     # Assume len(x) == len(y)
     n = len(x)
@@ -148,8 +184,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 def findCorrelatedRuns(runs, minCorrelation = 0.85):
     return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
-
-data = readCSVFile("davis cold pressor0000.csv", 33)
+data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
 f = open("davisColdPressorRR.csv")
 reader = csv.reader(f)
@@ -161,8 +196,8 @@ for line in reader:
     lineNum += 1
 f.close()
 
-runs = findMatchingRuns(data[0],davisRR, 3, 1)
-correlatedRuns = findCorrelatedRuns(runs, .95)
+runs = findMatchingRuns(data[0],davisRR, _width, _lag)
+correlatedRuns = findCorrelatedRuns(runs, _pearson)
 
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
