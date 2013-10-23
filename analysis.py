@@ -1,4 +1,9 @@
-import csv
+import csv,sys
+
+_verbose = False
+if(len(sys.argv) > 1):
+    if(sys.argv[1] == "-v"):
+        _verbose = True
 
 def pearsonR(x, y):
     # Assume len(x) == len(y)
@@ -16,7 +21,7 @@ def pearsonR(x, y):
 # channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
 
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40, ECGChannel = 14, ECGFilter = 2):
+def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
     reader = csv.reader(f,delimiter="\t")
 
@@ -27,6 +32,8 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40, ECG
     SBPIndex = 0
     ECGIndex = 0
 
+    movingAverageList = []
+
     ECGGrabLine = -1
     grabNewLine = True
 
@@ -34,31 +41,51 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = 42, SBPChannel = 40, ECG
 
     for line in reader:
         lineNum += 1
-        if("CH"+str(RRChannel) in line):
-            RRIndex = line.index("CH"+str(RRChannel))
-            print("RRIndex: "+str(RRIndex))
-            SBPIndex = line.index("CH"+str(SBPChannel))
-            print("SBPIndex: "+str(SBPIndex))
-            ECGIndex = line.index("CH"+str(ECGChannel))
-            print("ECGIndex: "+str(ECGIndex))
+        if(RRChannel in line):
+            RRIndex = line.index(RRChannel)
+            SBPIndex = line.index(SBPChannel)
+            ECGIndex = line.index(ECGChannel)
+            if(_verbose):
+                print("ECGIndex: "+str(ECGIndex))
+                print("RRIndex: "+str(RRIndex))
+                print("SBPIndex: "+str(SBPIndex))
+
 
         if(lineNum > headerLength): #skip the headers
+            """if(len(movingAverageList) == 200):
+                movingAverageList = movingAverageList[1:]
+
+                x = float(line[ECGIndex])
+                avg = sum(movingAverageList)/200
+
+                #
+
+                if((x)/avg > 4):
+                    #print("Spike @ "+line[ECGIndex])
+                    if(grabNewLine):
+                        print((x - avg)/avg)
+                        ECGGrabLine = lineNum + 50
+                        print(ECGGrabLine)
+                        grabNewLine = False"""
+
+
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
-                    ECGGrabLine = lineNum + round(float(line[ECGIndex]))
+                    ECGGrabLine = lineNum + 50
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
+                #print("Grabbed @ "+str(lineNum))
                 RR.append(float(line[RRIndex]))
                 grabNewLine = True
 
+            #movingAverageList.append(float(line[ECGIndex]))
+
     f.close()
-    print("RR: "+str(RR))
+    if(_verbose):
+        print("RR: "+str(RR))
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, RR)  
-
-## Combine these two functions so that all the data processing is done online ##
-## Going to need two items at a time. Good luck & godspeed. ##
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
@@ -78,9 +105,9 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
-
-    print("RR length: "+str(len(RR)))
-    print("SBP length: "+str(len(SBP)))
+    if(_verbose):
+        print("RR length: "+str(len(RR)))
+        print("SBP length: "+str(len(SBP)))
 
     runs = []
     currentRun = {"RR":[],"SBP":[]}
@@ -137,7 +164,8 @@ f.close()
 runs = findMatchingRuns(data[0],davisRR, 3, 1)
 correlatedRuns = findCorrelatedRuns(runs, .95)
 
-print(correlatedRuns)
+if(_verbose):
+    print("Correlated runs: "+str(correlatedRuns))
 
 f = open("CSVOutput.csv","w")
 output = "SBP, RR\n"
