@@ -86,24 +86,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
                 print("RRIndex: "+str(RRIndex))
                 print("SBPIndex: "+str(SBPIndex))
 
-
         if(lineNum > headerLength): #skip the headers
-            """if(len(movingAverageList) == 200):
-                movingAverageList = movingAverageList[1:]
-
-                x = float(line[ECGIndex])
-                avg = sum(movingAverageList)/200
-
-                #
-
-                if((x)/avg > 4):
-                    #print("Spike @ "+line[ECGIndex])
-                    if(grabNewLine):
-                        print((x - avg)/avg)
-                        ECGGrabLine = lineNum + 50
-                        print(ECGGrabLine)
-                        grabNewLine = False"""
-
 
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
@@ -111,11 +94,10 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
-                #print("Grabbed @ "+str(lineNum))
+                if(_verbose):
+                    print("Grabbed @ "+str(lineNum))
                 RR.append(float(line[RRIndex]))
                 grabNewLine = True
-
-            #movingAverageList.append(float(line[ECGIndex]))
 
     f.close()
     if(_verbose):
