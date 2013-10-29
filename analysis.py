@@ -73,10 +73,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
     ECGGrabLine = -1
     grabNewLine = True
 
-    lineNum = -1
-
-    for line in reader:
-        lineNum += 1
+    for lineNum, line in enumerate(reader):
         if(RRChannel in line):
             RRIndex = line.index(RRChannel)
             SBPIndex = line.index(SBPChannel)
@@ -130,36 +127,39 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     runs = []
     currentRun = {"RR":[],"SBP":[]}
     direction = 0
-    for i in range(1, len(SBP)):
-        SBPDiff = SBP[i] - SBP[i - 1]
-        RRDiff = RR[i + lag] - RR[i + lag - 1]
+   
+    iterList = enumerate(zip(SBP, RR))
+    next(iterList)
 
+    for i, (SBPEntry, RREntry) in iterList:
+        SBPDiff = SBPEntry - SBP[i - 1]
+        RRDiff = RR[i + lag] - RR[i + lag - 1]
         if(RRDiff > 0 and SBPDiff > 0):
             if(direction >= 0):
-                currentRun["RR"].append(RR[i])
-                currentRun["SBP"].append(SBP[i])
+                currentRun["RR"].append(RREntry)
+                currentRun["SBP"].append(SBPEntry)
                 direction = 1
             else:
                 runs.append(currentRun)
-                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
                 direction = 1
         elif(RRDiff < 0 and SBPDiff < 0):
             if(direction <= 0):
-                currentRun["RR"].append(RR[i])
-                currentRun["SBP"].append(SBP[i])
+                currentRun["RR"].append(RREntry)
+                currentRun["SBP"].append(SBPEntry)
                 direction = -1
             else:
                 #print(currentRun)
                 runs.append(currentRun)
-                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
                 direction = -1
         elif(RRDiff == 0 and SBPDiff == 0):
-            currentRun["RR"].append(RR[i])
-            currentRun["SBP"].append(SBP[i])
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
         else:
             #print(currentRun)
             runs.append(currentRun)
-            currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
+            currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
     return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
