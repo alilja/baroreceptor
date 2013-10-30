@@ -12,13 +12,17 @@ _width = 3
 _lag = 0
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=","header=","rrchannel=","sbpchannel=","ecgchannel=","ecgfilter=","pearsonr=","clusterwidth=","lag="])
+    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
+                        "header=","rrchannel=","sbpchannel=","ecgchannel=",
+                        "ecgfilter=","pearsonr=","clusterwidth=","lag="])
 except getopt.GetoptError:
-    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]>"+
+        " -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
     sys.exit(2)
 for opt, arg in opts:
     if opt == '-h':
-        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]>"+
+            "-c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
         sys.exit()
     elif opt == '-v':
         _verbose = True
@@ -50,14 +54,16 @@ def pearsonR(x, y):
     sum_y_sq = sum(map(lambda x: pow(x, 2), y))
     psum = sum(map(lambda x, y: x * y, x, y))
     num = psum - (sum_x * sum_y/n)
-    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * 
+            (sum_y_sq - pow(sum_y, 2) / n), 0.5)
     if den == 0: return 0
     return num / den
 
 # channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
 
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
+def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
+            SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
     reader = csv.reader(f,delimiter="\t")
 
@@ -116,7 +122,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
         [runStart, runEnd, runLength, runDirection]
 
-    Direction is either +1 or -1.
+    runDirection is either +1 or -1.
 
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
@@ -185,11 +191,10 @@ if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
 f = open("CSVOutput.csv","w")
-output = "SBP, RR\n"
+output = [SBP, RR]
 for run in correlatedRuns:
     zippedPairs = zip(run["SBP"], run["RR"])
     for pair in zippedPairs:
-        output += str(pair[0]) + ", " + str(pair[1]) + "\n"
-    output += ",\n"
-f.write(output)
+        output.append(str(pair[0]) + ", " + str(pair[1]))
+f.write("\n".join(output))
 f.close()
