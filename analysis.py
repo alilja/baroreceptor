@@ -160,7 +160,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
             #print(currentRun)
             runs.append(currentRun)
             currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
-    return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
+    return [r for r in runs if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
 def findCorrelatedRuns(runs, minCorrelation = 0.85):
