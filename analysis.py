@@ -12,13 +12,17 @@ _width = 3
 _lag = 0
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=","header=","rrchannel=","sbpchannel=","ecgchannel=","ecgfilter=","pearsonr=","clusterwidth=","lag="])
+    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
+                        "header=","rrchannel=","sbpchannel=","ecgchannel=",
+                        "ecgfilter=","pearsonr=","clusterwidth=","lag="])
 except getopt.GetoptError:
-    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]>"+
+        " -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
     sys.exit(2)
 for opt, arg in opts:
     if opt == '-h':
-        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]>"+
+            "-c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
         sys.exit()
     elif opt == '-v':
         _verbose = True
@@ -50,14 +54,16 @@ def pearsonR(x, y):
     sum_y_sq = sum(map(lambda x: pow(x, 2), y))
     psum = sum(map(lambda x, y: x * y, x, y))
     num = psum - (sum_x * sum_y/n)
-    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * 
+            (sum_y_sq - pow(sum_y, 2) / n), 0.5)
     if den == 0: return 0
     return num / den
 
 # channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
 
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
+def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
+            SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
     reader = csv.reader(f,delimiter="\t")
 
@@ -73,10 +79,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
     ECGGrabLine = -1
     grabNewLine = True
 
-    lineNum = -1
-
-    for line in reader:
-        lineNum += 1
+    for lineNum, line in enumerate(reader):
         if(RRChannel in line):
             RRIndex = line.index(RRChannel)
             SBPIndex = line.index(SBPChannel)
@@ -86,24 +89,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
                 print("RRIndex: "+str(RRIndex))
                 print("SBPIndex: "+str(SBPIndex))
 
-
         if(lineNum > headerLength): #skip the headers
-            """if(len(movingAverageList) == 200):
-                movingAverageList = movingAverageList[1:]
-
-                x = float(line[ECGIndex])
-                avg = sum(movingAverageList)/200
-
-                #
-
-                if((x)/avg > 4):
-                    #print("Spike @ "+line[ECGIndex])
-                    if(grabNewLine):
-                        print((x - avg)/avg)
-                        ECGGrabLine = lineNum + 50
-                        print(ECGGrabLine)
-                        grabNewLine = False"""
-
 
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
@@ -111,11 +97,10 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
-                #print("Grabbed @ "+str(lineNum))
+                if(_verbose):
+                    print("Grabbed @ "+str(lineNum))
                 RR.append(float(line[RRIndex]))
                 grabNewLine = True
-
-            #movingAverageList.append(float(line[ECGIndex]))
 
     f.close()
     if(_verbose):
@@ -137,7 +122,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
         [runStart, runEnd, runLength, runDirection]
 
-    Direction is either +1 or -1.
+    runDirection is either +1 or -1.
 
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
@@ -148,37 +133,40 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     runs = []
     currentRun = {"RR":[],"SBP":[]}
     direction = 0
-    for i in range(1, len(SBP)):
-        SBPDiff = SBP[i] - SBP[i - 1]
-        RRDiff = RR[i + lag] - RR[i + lag - 1]
+   
+    iterList = enumerate(zip(SBP, RR))
+    next(iterList)
 
+    for i, (SBPEntry, RREntry) in iterList:
+        SBPDiff = SBPEntry - SBP[i - 1]
+        RRDiff = RR[i + lag] - RR[i + lag - 1]
         if(RRDiff > 0 and SBPDiff > 0):
             if(direction >= 0):
-                currentRun["RR"].append(RR[i])
-                currentRun["SBP"].append(SBP[i])
+                currentRun["RR"].append(RREntry)
+                currentRun["SBP"].append(SBPEntry)
                 direction = 1
             else:
                 runs.append(currentRun)
-                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
                 direction = 1
         elif(RRDiff < 0 and SBPDiff < 0):
             if(direction <= 0):
-                currentRun["RR"].append(RR[i])
-                currentRun["SBP"].append(SBP[i])
+                currentRun["RR"].append(RREntry)
+                currentRun["SBP"].append(SBPEntry)
                 direction = -1
             else:
                 #print(currentRun)
                 runs.append(currentRun)
-                currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
+                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
                 direction = -1
         elif(RRDiff == 0 and SBPDiff == 0):
-            currentRun["RR"].append(RR[i])
-            currentRun["SBP"].append(SBP[i])
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
         else:
             #print(currentRun)
             runs.append(currentRun)
-            currentRun = {"RR":[RR[i]], "SBP":[SBP[i]]}
-    return [r for r in runs[1:-1] if len(r["SBP"]) >= clusterWidth]
+            currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
+    return [r for r in runs if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
 def findCorrelatedRuns(runs, minCorrelation = 0.85):
@@ -203,11 +191,10 @@ if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
 f = open("CSVOutput.csv","w")
-output = "SBP, RR\n"
+output = [SBP, RR]
 for run in correlatedRuns:
     zippedPairs = zip(run["SBP"], run["RR"])
     for pair in zippedPairs:
-        output += str(pair[0]) + ", " + str(pair[1]) + "\n"
-    output += ",\n"
-f.write(output)
+        output.append(str(pair[0]) + ", " + str(pair[1]))
+f.write("\n".join(output))
 f.close()
