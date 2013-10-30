@@ -65,7 +65,7 @@ def pearsonR(x, y):
 def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
             SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
-    reader = csv.reader(f,delimiter="\t")
+    reader = csv.reader(f,delimiter=",")
 
     RR = [0]
     SBP = [0]
@@ -100,11 +100,12 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                 if(_verbose):
                     print("Grabbed @ "+str(lineNum))
                 RR.append(float(line[RRIndex]))
+                SBP.append(float(line[SBPIndex]))
                 grabNewLine = True
 
     f.close()
     if(_verbose):
-        print("RR: "+str(RR))
+        print("SBP: "+str(RR))
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, RR)  
 
@@ -174,25 +175,25 @@ def findCorrelatedRuns(runs, minCorrelation = 0.85):
 
 data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
-f = open("davisColdPressorRR.csv")
-reader = csv.reader(f)
-lineNum = 0
-davisRR = []
-for line in reader:
-    if(lineNum > 3):
-        davisRR.append(float(line[0]))
-    lineNum += 1
+output = ["SBP, RR"]
+stuff = zip(data[0], data[1])
+print(stuff)
+for a, b in stuff:
+    output.append(",".join([str(a),str(b)]))
+
+f = open("test.csv","w")
+f.write("\n".join(output))
 f.close()
 
-runs = findMatchingRuns(data[0],davisRR, _width, _lag)
+runs = findMatchingRuns(data[0],data[1], _width, _lag)
 correlatedRuns = findCorrelatedRuns(runs, _pearson)
 
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
 f = open("CSVOutput.csv","w")
-output = [SBP, RR]
-for run in correlatedRuns:
+output = ["SBP, RR"]
+for run in runs:
     zippedPairs = zip(run["SBP"], run["RR"])
     for pair in zippedPairs:
         output.append(str(pair[0]) + ", " + str(pair[1]))
