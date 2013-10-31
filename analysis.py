@@ -93,7 +93,8 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
 
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
-                    ECGGrabLine = lineNum + 50
+                    
+                    ECGGrabLine = lineNum + round(float(line[RRIndex]))*2
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
@@ -170,7 +171,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     return [r for r in runs if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
-def findCorrelatedRuns(runs, minCorrelation = 0.85):
+def findCorrelatedRuns(runs, minCorrelation = 0.75):
     return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
 data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
