@@ -181,7 +181,7 @@ stuff = zip(data[0], data[1])
 for a, b in stuff:
     output.append(",".join([str(a),str(b)]))
 
-f = open(_fileName[:-3]+"_raw.csv","w")
+f = open(_fileName[:-4]+"_raw.csv","w")
 f.write("\n".join(output))
 f.close()
 
@@ -191,7 +191,7 @@ correlatedRuns = findCorrelatedRuns(runs, _pearson)
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
-f = open(_fileName[:3]+"_correlated.csv","w")
+f = open(_fileName[:-4]+"_correlated.csv","w")
 output = ["SBP, RR"]
 for run in runs:
     zippedPairs = zip(run["SBP"], run["RR"])
