@@ -100,7 +100,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
             if(lineNum == ECGGrabLine):
                 if(_verbose):
                     print("Grabbed @ "+str(lineNum))
-                RR.append(float(line[RRIndex]))
+                RR.append(float(line[RRIndex])/60)
                 SBP.append(float(line[SBPIndex]))
                 grabNewLine = True
 
@@ -178,11 +178,10 @@ data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
 output = ["SBP, RR"]
 stuff = zip(data[0], data[1])
-print(stuff)
 for a, b in stuff:
     output.append(",".join([str(a),str(b)]))
 
-f = open("test.csv","w")
+f = open(_fileName[:-3]+"_raw.csv","w")
 f.write("\n".join(output))
 f.close()
 
@@ -192,7 +191,7 @@ correlatedRuns = findCorrelatedRuns(runs, _pearson)
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
-f = open("CSVOutput.csv","w")
+f = open(_fileName[:3]+"_correlated.csv","w")
 output = ["SBP, RR"]
 for run in runs:
     zippedPairs = zip(run["SBP"], run["RR"])
