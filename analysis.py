@@ -185,7 +185,6 @@ output = ["SBP, RR"]
 stuff = zip(data[0], data[1])
 for a, b in stuff:
     output.append(",".join([str(a),str(b)]))
-
 f = open(_fileName[:-4]+"_raw.csv","w")
 f.write("\n".join(output))
 f.close()
