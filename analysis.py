@@ -1,7 +1,7 @@
 import csv,sys,getopt
 
 _verbose = False
-_fileName = "davis cold pressor0000.csv"
+_fileName = ""
 _headerLength = 33
 _RR = "CH42"
 _SBP = "CH40"
@@ -14,11 +14,18 @@ _lag = 0
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=","header=","rrchannel=","sbpchannel=","ecgchannel=","ecgfilter=","pearsonr=","clusterwidth=","lag="])
 except getopt.GetoptError:
-    print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
     sys.exit(2)
 for opt, arg in opts:
     if opt == '-h':
-        print("filter.py -i <inputfile [STR]> -o <overwrite [BOOL]> -c <channel [INT]> -f <filter [FLOAT]> -d <header length [INT]>")
+        print("""analysis.py -i --input        <input file> 
+          -d --header       <header length> 
+          -r --hrchannel    <hr channel> 
+          -s --sbpchannel   <sbp channel> 
+          -e --ecgchannel   <ecg channel>
+          -f --ecgfilter    <high pass filter>
+          -p --pearsonr     <minimum run correlation>
+          -w --clusterwidth <minimum run n>
+          -l --lag          <hr offset from sbp>""")
         sys.exit()
     elif opt == '-v':
         _verbose = True
@@ -26,7 +33,7 @@ for opt, arg in opts:
         _fileName = arg
     elif opt in ("-d", "--header"):
         _headerLength = int(arg)
-    elif opt in ("-r", "--rrchannel"):
+    elif opt in ("-r", "--hrchannel"):
         _RR = arg
     elif opt in ("-s", "--sbpchannel"):
         _SBP = arg
