@@ -12,7 +12,9 @@ _width = 3
 _lag = 0
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=","header=","rrchannel=","sbpchannel=","ecgchannel=","ecgfilter=","pearsonr=","clusterwidth=","lag="])
+    opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
+                        "header=","rrchannel=","sbpchannel=","ecgchannel=",
+                        "ecgfilter=","pearsonr=","clusterwidth=","lag="])
 except getopt.GetoptError:
     sys.exit(2)
 for opt, arg in opts:
@@ -57,16 +59,18 @@ def pearsonR(x, y):
     sum_y_sq = sum(map(lambda x: pow(x, 2), y))
     psum = sum(map(lambda x, y: x * y, x, y))
     num = psum - (sum_x * sum_y/n)
-    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * 
+            (sum_y_sq - pow(sum_y, 2) / n), 0.5)
     if den == 0: return 0
     return num / den
 
 # channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
 
 #readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
+def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
+            SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
-    reader = csv.reader(f,delimiter="\t")
+    reader = csv.reader(f,delimiter=",")
 
     RR = [0]
     SBP = [0]
@@ -94,18 +98,20 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", SBPChannel = "CH
 
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
-                    ECGGrabLine = lineNum + 50
+                    
+                    ECGGrabLine = lineNum + round(float(line[RRIndex]))*2
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
                 if(_verbose):
                     print("Grabbed @ "+str(lineNum))
-                RR.append(float(line[RRIndex]))
+                RR.append(float(line[RRIndex])/60)
+                SBP.append(float(line[SBPIndex]))
                 grabNewLine = True
 
     f.close()
     if(_verbose):
-        print("RR: "+str(RR))
+        print("SBP: "+str(RR))
     print("Finished analyzing file \""+fileName+"\"")
     return (SBP, RR)  
 
@@ -123,7 +129,7 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
         [runStart, runEnd, runLength, runDirection]
 
-    Direction is either +1 or -1.
+    runDirection is either +1 or -1.
 
     clusterWidth is the minimum length of each run. lag is the difference
     in offset between the second list and the first list."""
@@ -170,33 +176,31 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     return [r for r in runs if len(r["SBP"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
-def findCorrelatedRuns(runs, minCorrelation = 0.85):
+def findCorrelatedRuns(runs, minCorrelation = 0.75):
     return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
 data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
-f = open("davisColdPressorRR.csv")
-reader = csv.reader(f)
-lineNum = 0
-davisRR = []
-for line in reader:
-    if(lineNum > 3):
-        davisRR.append(float(line[0]))
-    lineNum += 1
+output = ["SBP, RR"]
+stuff = zip(data[0], data[1])
+for a, b in stuff:
+    output.append(",".join([str(a),str(b)]))
+
+f = open(_fileName[:-4]+"_raw.csv","w")
+f.write("\n".join(output))
 f.close()
 
-runs = findMatchingRuns(data[0],davisRR, _width, _lag)
+runs = findMatchingRuns(data[0],data[1], _width, _lag)
 correlatedRuns = findCorrelatedRuns(runs, _pearson)
 
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
-f = open("CSVOutput.csv","w")
-output = "SBP, RR\n"
-for run in correlatedRuns:
+f = open(_fileName[:-4]+"_correlated.csv","w")
+output = ["SBP, RR"]
+for run in runs:
     zippedPairs = zip(run["SBP"], run["RR"])
     for pair in zippedPairs:
-        output += str(pair[0]) + ", " + str(pair[1]) + "\n"
-    output += ",\n"
-f.write(output)
+        output.append(str(pair[0]) + ", " + str(pair[1]))
+f.write("\n".join(output))
 f.close()
