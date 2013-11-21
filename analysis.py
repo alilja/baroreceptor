@@ -74,7 +74,8 @@ def pearsonR(x, y):
 def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
             SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
-    reader = csv.reader(f,delimiter=",")
+    print("Opening \"%s\""%fileName)
+    reader = csv.reader(f,delimiter="\t")
 
     RR = [0]
     SBP = [0]
@@ -99,7 +100,6 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                 print("SBPIndex: "+str(SBPIndex))
 
         if(lineNum > headerLength): #skip the headers
-            print(line[ECGIndex])
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
                     
@@ -116,7 +116,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
     f.close()
     if(_verbose):
         print("SBP: "+str(RR))
-    print("Finished analyzing file \""+fileName+"\"")
+    print("Closing \"%s\""%fileName)
     return (SBP, RR)  
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
@@ -186,14 +186,13 @@ def findCorrelatedRuns(runs, minCorrelation = 0.75):
 path = os.path.dirname(os.path.realpath(__file__)) + "/%s/"%_fileName
 for file in os.listdir(path):
     currentFile = os.path.join(path, file)
-    print("Opening file \"%s\""%currentFile)
 
     data = readCSVFile(currentFile, _headerLength, _RR, _SBP, _ECG, _filter)
     runs = findMatchingRuns(data[0],data[1], _width, _lag)
     correlatedRuns = findCorrelatedRuns(runs, _pearson)
 
     output = ["SBP, RR"]
-    stuff = zip(data[0], data[1])
+    stuff = list(zip(data[0], data[1]))
     sbpAverage = 0
     rrAverage = 0
     for sbp, rr in stuff:
