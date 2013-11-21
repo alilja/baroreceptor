@@ -99,7 +99,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                 print("SBPIndex: "+str(SBPIndex))
 
         if(lineNum > headerLength): #skip the headers
-
+            print(line[ECGIndex])
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
                 if(grabNewLine):      #make sure we haven't already grabbed a number
                     
@@ -186,6 +186,7 @@ def findCorrelatedRuns(runs, minCorrelation = 0.75):
 path = os.path.dirname(os.path.realpath(__file__)) + "/%s/"%_fileName
 for file in os.listdir(path):
     currentFile = os.path.join(path, file)
+    print("Opening file \"%s\""%currentFile)
 
     data = readCSVFile(currentFile, _headerLength, _RR, _SBP, _ECG, _filter)
     runs = findMatchingRuns(data[0],data[1], _width, _lag)
