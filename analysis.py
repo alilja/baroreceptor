@@ -145,10 +145,14 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     currentRun = {"RR":[],"SBP":[]}
     direction = 0
    
-    iterList = enumerate(zip(SBP, RR))
+    iterList = zip(SBP, RR)
+    length = len(iterList)
+    iterList = enumerate(iterList)
     next(iterList)
 
     for i, (SBPEntry, RREntry) in iterList:
+        if(lag > 0 and i + lag == length):
+            break
         SBPDiff = SBPEntry - SBP[i - 1]
         RRDiff = RR[i + lag] - RR[i + lag - 1]
         if(RRDiff > 0 and SBPDiff > 0):
