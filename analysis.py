@@ -75,7 +75,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
             SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
     print("Opening \"%s\""%fileName)
-    reader = csv.reader(f,delimiter=",")
+    reader = csv.reader(f,delimiter="\t")
 
     RR = [0]
     SBP = [0]
@@ -187,37 +187,27 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 def findCorrelatedRuns(runs, minCorrelation = 0.75):
     return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
 
-path = os.path.dirname(os.path.realpath(__file__)) + "/%s/"%_fileName
-for file in os.listdir(path):
-    if(file.endswith(".txt") or file.endswith(".csv")):    
-        currentFile = os.path.join(path, file)
+data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
-        data = readCSVFile(currentFile, _headerLength, _RR, _SBP, _ECG, _filter)
-        runs = findMatchingRuns(data[0],data[1], _width, _lag)
-        correlatedRuns = findCorrelatedRuns(runs, _pearson)
+output = ["SBP, RR"]
+stuff = zip(data[0], data[1])
+for a, b in stuff:
+    output.append(",".join([str(a),str(b)]))
+f = open(_fileName[:-4]+"_raw.csv","w")
+f.write("\n".join(output))
+f.close()
 
-        output = ["SBP, RR"]
-        stuff = list(zip(data[0], data[1]))
-        sbpAverage = 0
-        rrAverage = 0
-        for sbp, rr in stuff:
-            output.append(",".join([str(sbp),str(rr)]))
-            sbpAverage += sbp
-            rrAverage  += rr
-        count = len(stuff)
-        output.append(",".join([str(sbpAverage/count), str(rrAverage/count)]))
-        f = open(currentFile[:-4]+"_raw.csv","w")
-        f.write("\n".join(output))
-        f.close()
+runs = findMatchingRuns(data[0],data[1], _width, _lag)
+correlatedRuns = findCorrelatedRuns(runs, _pearson)
 
-        if(_verbose):
-            print("Correlated runs: "+str(correlatedRuns))
+if(_verbose):
+    print("Correlated runs: "+str(correlatedRuns))
 
-        f = open(currentFile[:-4]+"_correlated.csv","w")
-        output = ["SBP, RR, SPRS"]
-        for run in runs:
-            zippedPairs = zip(run["SBP"], run["RR"])
-            for sbp, rr in zippedPairs:
-                output.append(",".join((str(sbp),str(rr), str(rr/sbp))))
-        f.write("\n".join(output))
-        f.close()
+f = open(_fileName[:-4]+"_correlated.csv","w")
+output = ["SBP, RR"]
+for run in runs:
+    zippedPairs = zip(run["SBP"], run["RR"])
+    for pair in zippedPairs:
+        output.append(str(pair[0]) + ", " + str(pair[1]))
+f.write("\n".join(output))
+f.close()
