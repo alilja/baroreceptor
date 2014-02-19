@@ -53,7 +53,7 @@ for opt, arg in opts:
         _width = int(arg)
     elif opt in ("-l", "--lag"):
         _lag = int(arg)
-    
+
 def pearsonR(x, y):
     # Assume len(x) == len(y)
     n = len(x)
@@ -63,8 +63,7 @@ def pearsonR(x, y):
     sum_y_sq = sum(map(lambda x: pow(x, 2), y))
     psum = sum(map(lambda x, y: x * y, x, y))
     num = psum - (sum_x * sum_y/n)
-    den = pow((sum_x_sq - pow(sum_x, 2) / n) * 
-            (sum_y_sq - pow(sum_y, 2) / n), 0.5)
+    den = pow((sum_x_sq - pow(sum_x, 2) / n) * (sum_y_sq - pow(sum_y, 2) / n), 0.5)
     if den == 0: return 0
     return num / den
 
@@ -83,8 +82,6 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
     RRIndex = 0
     SBPIndex = 0
     ECGIndex = 0
-
-    movingAverageList = []
 
     ECGGrabLine = -1
     grabNewLine = True
@@ -121,22 +118,6 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
-    """Takes two lists of numbers and determines when they are both moving
-    in the same direction; that is, when they are both increasing at the same
-    time or both decreasing at the same time. Example:
-
-        a = [0,1,2, 3,4,5,1,0,9, 8]
-        b = [1,4,9,13,0,3,2,0,11,14]
-
-    The function will find the indices 0:3, 4:5, 5:7, and 7:8. It will also
-    determine the length and direction. Output is in the form of lists:
-
-        [runStart, runEnd, runLength, runDirection]
-
-    runDirection is either +1 or -1.
-
-    clusterWidth is the minimum length of each run. lag is the difference
-    in offset between the second list and the first list."""
     if(_verbose):
         print("RR length: "+str(len(RR)))
         print("SBP length: "+str(len(SBP)))
@@ -145,47 +126,60 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
     currentRun = {"RR":[],"SBP":[]}
     direction = 0
    
-    iterList = zip(SBP, RR)
-    length = len(iterList)
-    iterList = enumerate(iterList)
+    iterList = enumerate(zip(SBP, RR))
     next(iterList)
 
     for i, (SBPEntry, RREntry) in iterList:
-        if(lag > 0 and i + lag == length):
+        print(i, SBPEntry, RREntry)
+        if(lag > 0 and i + lag == len(iterList)):
+            print("Lag exceeding length of list; not processing final %s items" % lag)
             break
         SBPDiff = SBPEntry - SBP[i - 1]
         RRDiff = RR[i + lag] - RR[i + lag - 1]
         if(RRDiff > 0 and SBPDiff > 0):
-            if(direction >= 0):
+            # if they both have the same sign and the direction is already positive
+            # add the current entries to the current run list
+            if(direction > 0):
                 currentRun["RR"].append(RREntry)
                 currentRun["SBP"].append(SBPEntry)
-                direction = 1
-            else:
+            # if they're going up but the direction is down, we have the end of one run
+            # add the previous one to the list and create a new one from here, changing direction
+            elif(direction < 0):
                 runs.append(currentRun)
-                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
+                currentRun = {"RR":[RR[i + lag - 1], RREntry], "SBP":[SBP[i - 1], SBPEntry]}
                 direction = 1
-        elif(RRDiff < 0 and SBPDiff < 0):
-            if(direction <= 0):
+            # if the direction is 0, change it to up
+            else:
+                direction = 1
+
+        elif(RRDiff == 0 or SBPDiff == 0):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        else:
+            print(currentRun)
+            runs.append(currentRun)
+            currentRun = {"RR":[],"SBP":[]}
+        """elif(RRDiff <= 0 and SBPDiff <= 0):
+            if(direction < 0):
                 currentRun["RR"].append(RREntry)
                 currentRun["SBP"].append(SBPEntry)
-                direction = -1
-            else:
+            elif(direction > 0):
                 #print(currentRun)
                 runs.append(currentRun)
                 currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
                 direction = -1
-        elif(RRDiff == 0 and SBPDiff == 0):
-            currentRun["RR"].append(RREntry)
-            currentRun["SBP"].append(SBPEntry)
-        else:
-            #print(currentRun)
-            runs.append(currentRun)
-            currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
-    return [r for r in runs if len(r["SBP"]) >= clusterWidth]
+            else:
+                direction = 1"""
+    return [r for r in runs if len(r["RR"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
 def findCorrelatedRuns(runs, minCorrelation = 0.75):
-    return [run for run in runs if pearsonR(run["SBP"], run["RR"]) > minCorrelation]
+    output = []
+    for run in runs:
+        r = pearsonR(run["SBP"], run["RR"])
+        if(r >= minCorrelation or r <= -minCorrelation):
+            output.append(run)
+    return output
 
 data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
@@ -197,17 +191,19 @@ f = open(_fileName[:-4]+"_raw.csv","w")
 f.write("\n".join(output))
 f.close()
 
-runs = findMatchingRuns(data[0],data[1], _width, _lag)
-correlatedRuns = findCorrelatedRuns(runs, _pearson)
+matchingRuns = findMatchingRuns(data[0],data[1], _width, _lag)
+print(len(matchingRuns))
+correlatedRuns = findCorrelatedRuns(matchingRuns, _pearson)
 
 if(_verbose):
     print("Correlated runs: "+str(correlatedRuns))
 
 f = open(_fileName[:-4]+"_correlated.csv","w")
 output = ["SBP, RR"]
-for run in runs:
+for run in matchingRuns:
     zippedPairs = zip(run["SBP"], run["RR"])
     for pair in zippedPairs:
         output.append(str(pair[0]) + ", " + str(pair[1]))
+    output.append(",\n")
 f.write("\n".join(output))
 f.close()
