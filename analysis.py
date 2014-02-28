@@ -24,20 +24,21 @@ except getopt.GetoptError:
 for opt, arg in opts:
     if opt == '-h':
         print("""analysis.py -i --input        <input file> 
-          -d --header       <header length> 
+          -h --header       <header length> 
           -r --hrchannel    <hr channel> 
           -s --sbpchannel   <sbp channel> 
           -e --ecgchannel   <ecg channel>
           -f --ecgfilter    <high pass filter>
           -p --pearsonr     <minimum run correlation>
           -w --clusterwidth <minimum run n>
-          -l --lag          <hr offset from sbp>""")
+          -l --lag          <hr offset from sbp>
+          -d --divider      <divider character>""")
         sys.exit()
     elif opt == '-v':
         _verbose = True
     elif opt in ("-i", "--input"):
         _fileName = arg
-    elif opt in ("-d", "--header"):
+    elif opt in ("-h", "--header"):
         _headerLength = int(arg)
     elif opt in ("-r", "--hrchannel"):
         _RR = arg
@@ -53,6 +54,8 @@ for opt, arg in opts:
         _width = int(arg)
     elif opt in ("-l", "--lag"):
         _lag = int(arg)
+    elif opt in ("-d", "--divider"):
+        _lag = str(arg)
 
 def pearsonR(x, y):
     # Assume len(x) == len(y)
@@ -86,8 +89,16 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
     ECGGrabLine = -1
     grabNewLine = True
 
+    header_end = 0
+    header_read = False
+
     for lineNum, line in enumerate(reader):
+        #print(line))
         if(RRChannel in line):
+            if(_verbose):
+                print("Grabbing header information @ line %s" % lineNum)
+            header_end = lineNum + 1
+            header_read = True
             RRIndex = line.index(RRChannel)
             SBPIndex = line.index(SBPChannel)
             ECGIndex = line.index(ECGChannel)
@@ -96,10 +107,10 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                 print("RRIndex: "+str(RRIndex))
                 print("SBPIndex: "+str(SBPIndex))
 
-        if(lineNum > headerLength): #skip the headers
+        if(lineNum > header_end and header_read): #skip the headers
             if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
+                #print("Filter exceeded")
                 if(grabNewLine):      #make sure we haven't already grabbed a number
-                    
                     ECGGrabLine = lineNum + round(float(line[RRIndex]))*2
                     grabNewLine = False
 
@@ -124,63 +135,94 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
     runs = []
     currentRun = {"RR":[],"SBP":[]}
-    direction = 0
-   
-    iterList = enumerate(zip(SBP, RR))
+    
+    processing_list = zip(SBP, RR)
+    list_length = len(processing_list)
+
+    if(_verbose):
+        print("Beginning positive checks.")
+
+    iterList = enumerate(processing_list)
     next(iterList)
 
     for i, (SBPEntry, RREntry) in iterList:
-        print(i, SBPEntry, RREntry)
-        if(lag > 0 and i + lag == len(iterList)):
+        RREntry = RR[i + lag]
+
+        if(lag > 0 and i + lag + 1 == list_length):
             print("Lag exceeding length of list; not processing final %s items" % lag)
             break
-        SBPDiff = SBPEntry - SBP[i - 1]
-        RRDiff = RR[i + lag] - RR[i + lag - 1]
-        if(RRDiff > 0 and SBPDiff > 0):
-            # if they both have the same sign and the direction is already positive
-            # add the current entries to the current run list
-            if(direction > 0):
-                currentRun["RR"].append(RREntry)
-                currentRun["SBP"].append(SBPEntry)
-            # if they're going up but the direction is down, we have the end of one run
-            # add the previous one to the list and create a new one from here, changing direction
-            elif(direction < 0):
-                runs.append(currentRun)
-                currentRun = {"RR":[RR[i + lag - 1], RREntry], "SBP":[SBP[i - 1], SBPEntry]}
-                direction = 1
-            # if the direction is 0, change it to up
-            else:
-                direction = 1
 
-        elif(RRDiff == 0 or SBPDiff == 0):
+        prevRR  = RR[i - 1]
+        prevSBP = SBP[i - 1]
+
+        if(prevRR < RREntry and prevSBP < SBPEntry):
             currentRun["RR"].append(RREntry)
             currentRun["SBP"].append(SBPEntry)
+        elif(prevRR == RREntry and prevSBP == SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        elif(prevRR < RREntry and prevSBP == SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        elif(prevRR == RREntry and prevSBP < SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)        
         else:
-            print(currentRun)
             runs.append(currentRun)
-            currentRun = {"RR":[],"SBP":[]}
-        """elif(RRDiff <= 0 and SBPDiff <= 0):
-            if(direction < 0):
-                currentRun["RR"].append(RREntry)
-                currentRun["SBP"].append(SBPEntry)
-            elif(direction > 0):
-                #print(currentRun)
-                runs.append(currentRun)
-                currentRun = {"RR":[RREntry], "SBP":[SBPEntry]}
-                direction = -1
-            else:
-                direction = 1"""
+            currentRun = {"RR":[RREntry],"SBP":[SBPEntry]}
+
+    if(_verbose):
+        print("Beginning negative checks.")
+
+    iterList = enumerate(processing_list)
+    next(iterList)
+
+    for i, (SBPEntry, RREntry) in iterList:
+        RREntry = RR[i + lag]
+
+        if(lag > 0 and i + lag + 1 == list_length):
+            print("Lag exceeding length of list; not processing final %s items" % lag)
+            break
+
+        prevRR  = RR[i - 1]
+        prevSBP = SBP[i - 1]
+
+        if(prevRR > RREntry and prevSBP > SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        elif(prevRR == RREntry and prevSBP == SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        elif(prevRR > RREntry and prevSBP == SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)
+        elif(prevRR == RREntry and prevSBP > SBPEntry):
+            currentRun["RR"].append(RREntry)
+            currentRun["SBP"].append(SBPEntry)        
+        else:
+            runs.append(currentRun)
+            currentRun = {"RR":[RREntry],"SBP":[SBPEntry]}
+
     return [r for r in runs if len(r["RR"]) >= clusterWidth]
 
 #findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
 def findCorrelatedRuns(runs, minCorrelation = 0.75):
     output = []
     for run in runs:
-        r = pearsonR(run["SBP"], run["RR"])
-        if(r >= minCorrelation or r <= -minCorrelation):
-            output.append(run)
+        # check to see if all of one column is identical
+        sb_entries = run["SBP"]
+        rr_entries = run["RR"]
+
+        if(sum(sb_entries) - len(sb_entries)*sb_entries[0] == 0 or sum(rr_entries) - len(rr_entries)*rr_entries[0] == 0):
+            if(_verbose):
+                print("Skipping entry starting with SBP = {0}, RR = {1} because one column sums to zero.".format(sb_entries[0],rr_entries[0]))
+        else:
+            r = pearsonR(run["SBP"], run["RR"])
+            if(r >= minCorrelation or r <= -minCorrelation):
+                output.append(run)
     return output
 
+print("Reading input file...")
 data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
 
 output = ["SBP, RR"]
@@ -191,14 +233,17 @@ f = open(_fileName[:-4]+"_raw.csv","w")
 f.write("\n".join(output))
 f.close()
 
+print("Looking for matching runs...")
 matchingRuns = findMatchingRuns(data[0],data[1], _width, _lag)
-print(len(matchingRuns))
+print("Calculating correlation...")
 correlatedRuns = findCorrelatedRuns(matchingRuns, _pearson)
 
 if(_verbose):
-    print("Correlated runs: "+str(correlatedRuns))
+    print("Correlated runs: %s" % correlatedRuns)
 
-f = open(_fileName[:-4]+"_correlated.csv","w")
+output_file = _fileName[:-4]+"_correlated.csv"
+
+f = open(output_file,"w")
 output = ["SBP, RR"]
 for run in matchingRuns:
     zippedPairs = zip(run["SBP"], run["RR"])
@@ -207,3 +252,4 @@ for run in matchingRuns:
     output.append(",\n")
 f.write("\n".join(output))
 f.close()
+print("Output written to %s." % output_file)
