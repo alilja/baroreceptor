@@ -3,18 +3,21 @@ import csv
 import sys
 import getopt
 import os
+import itertools
 
 _verbose = False
 _fileName = ""
 _headerLength = 33
-_RR = "CH42"
+_RR = "CH5"
 _SBP = "CH40"
 _ECG = "CH14"
 _filter = 1.5
 _pearson = 0.85
 _width = 3
 _lag = 0
-_debug = False
+
+
+_debug = True
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
@@ -34,7 +37,7 @@ for opt, arg in opts:
           -w --clusterwidth <minimum run n>
           -l --lag          <hr offset from sbp>
           -d --divider      <divider character>
-          --debug""")
+          -g --debug""")
         sys.exit()
     elif opt == '-v':
         _verbose = True
@@ -58,8 +61,6 @@ for opt, arg in opts:
         _lag = int(arg)
     elif opt in ("-d", "--divider"):
         _lag = str(arg)
-    elif opt in "--debug":
-        _debug = True
 
 def pearsonR(x, y):
     # Assume len(x) == len(y)
@@ -76,57 +77,69 @@ def pearsonR(x, y):
 
 # channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
 
-#readCSVFile: str, int, int, int --> tuple-of-list-of-num
-def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42", 
-            SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
-    f = open(fileName,"r")
-    print("Opening \"%s\""%fileName)
-    reader = csv.reader(f,delimiter=",")
+def processCSVFile(fileName, HRChannel = "CH42", NIBPChannel = "CH5", 
+                            ECGChannel = "CH14", ECGFilter = 1.5):
+    f = open(fileName, "r")
+    csv_f = csv.reader(f,delimiter="\t")
+    search_list = [line for line in csv_f]
+    
 
-    RR = [0]
-    SBP = [0]
-
-    RRIndex = 0
-    SBPIndex = 0
-    ECGIndex = 0
-
-    ECGGrabLine = -1
-    grabNewLine = True
-
-    header_end = 0
+    SBP = [-1] # start with something in the list so we can just append new RR intervals
+    RR  = []
+    hr_index, nibp_index, ecg_index = 0, 0, 0
+    header_end  = 0
     header_read = False
 
-    for lineNum, line in enumerate(reader):
-        #if(lineNum < 50): print(line)
-        if(RRChannel in line):
-            if(_verbose): print("Grabbing header information @ line %s" % lineNum)
-            header_end = lineNum + 1
+    spike_a_location = 0
+    spike_b_location = 0
+    look_for_b_spike = False
+    nibp_search = []
+
+    for line_num, line in enumerate(search_list):
+        if(ECGChannel in line):
+            header_end = line_num + 1
             header_read = True
-            RRIndex = line.index(RRChannel)
-            SBPIndex = line.index(SBPChannel)
-            ECGIndex = line.index(ECGChannel)
+            hr_index   = line.index(HRChannel)
+            nibp_index = line.index(NIBPChannel)
+            ecg_index  = line.index(ECGChannel)
             if(_verbose):
-                print("ECGIndex: "+str(ECGIndex))
-                print("RRIndex: "+str(RRIndex))
-                print("SBPIndex: "+str(SBPIndex))
+                print("ECG index @ %s" % ecg_index)
+                print("NIBP index @ %s" % nibp_index)
+                print("HR index @ %s" % hr_index)
 
-        if(lineNum > header_end and header_read): #skip the headers
-            if(float(line[ECGIndex]) >= ECGFilter): #filter out anything lower than the spike height
-                #print("Filter exceeded")
-                if(grabNewLine):      #make sure we haven't already grabbed a number
-                    ECGGrabLine = lineNum + round(float(line[RRIndex]))*2
-                    grabNewLine = False
+        if(line_num > header_end and header_read):
+            # basically the idea is to find the first spike in the ECG (just look for it to exceed a threshold)
+            # then find the next spike
+            # use the indexes of those two as a window to look in the NIBP to find the max
+            # that max is the SBP for that interval
+            # then use the index of that max to find the HR for the PREVIOUS SBP
+            if(float(line[ecg_index]) >= ECGFilter):
+                if(look_for_b_spike == False):
+                    if(_debug): print("Found spike A @ %s" % line_num)
 
-            if(lineNum == ECGGrabLine):
-                if(_debug): print("Grabbed @ "+str(lineNum))
-                RR.append(60000/float(line[RRIndex])) #60000/HR = RR
-                SBP.append(float(line[SBPIndex]))
-                grabNewLine = True
+                    spike_a_location = line_num
+                    look_for_b_spike = True
+
+                elif(look_for_b_spike == True and line_num > spike_a_location + 10):
+                    if(_debug): print("Found spike B @ %s \n" % line_num)
+
+                    sbp = max(nibp_search)
+                    print(sbp)
+                    sbp_index = nibp_search.index(sbp)
+
+                    hr = float(search_list[spike_a_location + sbp_index][hr_index])
+
+                    SBP.append(sbp)
+                    RR.append(hr/60) # convert hr to rr
+
+                    nibp_search = []
+                    look_for_b_spike = False
+
+            if(look_for_b_spike): nibp_search.append(float(line[nibp_index]))
 
     f.close()
-    if(_verbose): print("SBP: "+str(RR))
-    print("Closing \"%s\""%fileName)
-    return (SBP, RR)  
+    return (SBP, RR)
+    
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
@@ -224,7 +237,7 @@ def findCorrelatedRuns(runs, minCorrelation = 0.75):
     return output
 
 print("Reading input file...")
-data = readCSVFile(_fileName, _headerLength, _RR, _SBP, _ECG, _filter)
+data = processCSVFile(_fileName, _RR, _SBP, _ECG, _filter)
 
 output = ["SBP, RR"]
 stuff = zip(data[0], data[1])
