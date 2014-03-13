@@ -120,11 +120,10 @@ def processCSVFile(fileName, HRChannel = "CH42", NIBPChannel = "CH5",
                     spike_a_location = line_num
                     look_for_b_spike = True
 
-                elif(look_for_b_spike == True and line_num > spike_a_location + 10):
+                elif(look_for_b_spike == True and line_num > spike_a_location + 50):
                     if(_debug): print("Found spike B @ %s \n" % line_num)
 
                     sbp = max(nibp_search)
-                    print(sbp)
                     sbp_index = nibp_search.index(sbp)
 
                     hr = float(search_list[spike_a_location + sbp_index][hr_index])
