@@ -14,6 +14,7 @@ _filter = 1.5
 _pearson = 0.85
 _width = 3
 _lag = 0
+_debug = False
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
@@ -32,7 +33,8 @@ for opt, arg in opts:
           -p --pearsonr     <minimum run correlation>
           -w --clusterwidth <minimum run n>
           -l --lag          <hr offset from sbp>
-          -d --divider      <divider character>""")
+          -d --divider      <divider character>
+          --debug""")
         sys.exit()
     elif opt == '-v':
         _verbose = True
@@ -56,6 +58,8 @@ for opt, arg in opts:
         _lag = int(arg)
     elif opt in ("-d", "--divider"):
         _lag = str(arg)
+    elif opt in "--debug":
+        _debug = True
 
 def pearsonR(x, y):
     # Assume len(x) == len(y)
@@ -77,7 +81,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
             SBPChannel = "CH40", ECGChannel = "CH14", ECGFilter = 1.5):
     f = open(fileName,"r")
     print("Opening \"%s\""%fileName)
-    reader = csv.reader(f,delimiter="\t")
+    reader = csv.reader(f,delimiter=",")
 
     RR = [0]
     SBP = [0]
@@ -93,10 +97,9 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
     header_read = False
 
     for lineNum, line in enumerate(reader):
-        #print(line))
+        #if(lineNum < 50): print(line)
         if(RRChannel in line):
-            if(_verbose):
-                print("Grabbing header information @ line %s" % lineNum)
+            if(_verbose): print("Grabbing header information @ line %s" % lineNum)
             header_end = lineNum + 1
             header_read = True
             RRIndex = line.index(RRChannel)
@@ -115,8 +118,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                     grabNewLine = False
 
             if(lineNum == ECGGrabLine):
-                if(_verbose):
-                    print("Grabbed @ "+str(lineNum))
+                if(_debug): print("Grabbed @ "+str(lineNum))
                 RR.append(float(line[RRIndex])/60)
                 SBP.append(float(line[SBPIndex]))
                 grabNewLine = True
@@ -235,9 +237,11 @@ f.close()
 
 print("Looking for matching runs...")
 matchingRuns = findMatchingRuns(data[0],data[1], _width, _lag)
+print("> Found %s matching, non-correlated runs." % len(matchingRuns))
 print("Calculating correlation...")
 correlatedRuns = findCorrelatedRuns(matchingRuns, _pearson)
 
+print("> Found %s correlated runs." % len(correlatedRuns))
 if(_verbose):
     print("Correlated runs: %s" % correlatedRuns)
 
