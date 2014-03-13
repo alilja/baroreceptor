@@ -119,13 +119,12 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
 
             if(lineNum == ECGGrabLine):
                 if(_debug): print("Grabbed @ "+str(lineNum))
-                RR.append(float(line[RRIndex])/60)
+                RR.append(60000/float(line[RRIndex])) #60000/HR = RR
                 SBP.append(float(line[SBPIndex]))
                 grabNewLine = True
 
     f.close()
-    if(_verbose):
-        print("SBP: "+str(RR))
+    if(_verbose):p rint("SBP: "+str(RR))
     print("Closing \"%s\""%fileName)
     return (SBP, RR)  
 
