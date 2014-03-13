@@ -124,7 +124,7 @@ def readCSVFile(fileName, headerLength = 1, RRChannel = "CH42",
                 grabNewLine = True
 
     f.close()
-    if(_verbose):p rint("SBP: "+str(RR))
+    if(_verbose): print("SBP: "+str(RR))
     print("Closing \"%s\""%fileName)
     return (SBP, RR)  
 
