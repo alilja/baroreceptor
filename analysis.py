@@ -8,16 +8,16 @@ import itertools
 _verbose = False
 _fileName = ""
 _headerLength = 33
-_RR = "CH5"
-_SBP = "CH40"
-_ECG = "CH14"
+_RR = ""
+_SBP = ""
+_ECG = ""
 _filter = 1.5
 _pearson = 0.85
 _width = 3
 _lag = 0
 
 
-_debug = True
+_debug = False
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
@@ -119,17 +119,18 @@ def processCSVFile(fileName, HRChannel = "CH42", NIBPChannel = "CH5",
 
                     spike_a_location = line_num
                     look_for_b_spike = True
+                    nibp_search.append(float(line[nibp_index]))
 
                 elif(look_for_b_spike == True and line_num > spike_a_location + 50):
                     if(_debug): print("Found spike B @ %s \n" % line_num)
 
                     sbp = max(nibp_search)
-                    sbp_index = nibp_search.index(sbp)
-
-                    hr = float(search_list[spike_a_location + sbp_index][hr_index])
+                    # print(search_list[spike_a_location + sbp_index])
+                    #hr = float(search_list[spike_a_location + sbp_index][hr_index])
+                    rr = line_num - spike_a_location
 
                     SBP.append(sbp)
-                    RR.append(hr/60) # convert hr to rr
+                    RR.append(rr)
 
                     nibp_search = []
                     look_for_b_spike = False
@@ -236,7 +237,7 @@ def findCorrelatedRuns(runs, minCorrelation = 0.75):
     return output
 
 print("Reading input file...")
-data = processCSVFile(_fileName, _RR, _SBP, _ECG, _filter)
+data = processCSVFile(_fileName, ECGFilter = _filter)
 
 output = ["SBP, RR"]
 stuff = zip(data[0], data[1])
