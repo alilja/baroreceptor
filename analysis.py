@@ -18,6 +18,8 @@ _lag = 0
 _debug = False
 
 
+## TODO improve docstrings (by which I mean add them)
+
 BiometricData = namedtuple("BiometricData","hr_index nibp_index ecg_index data")
 
 try:
@@ -162,10 +164,9 @@ def find_spikes(bio_data, threshold = 1.5):
                 look_for_b_spike = False
 
         if(look_for_b_spike): nibp_search.append(line[bio_data.nibp_index])
-
-    return (SBP, RR)
-
-    
+    if(SBP == [-1] or not RR):
+        raise RuntimeError("SBP or RR appear empty; try changing the ECG threshold.")
+    return (SBP, RR)    
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def find_matches(SBP, RR, clusterWidth = 3, lag = 0):
