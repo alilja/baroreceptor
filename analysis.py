@@ -19,6 +19,9 @@ _debug = False
 
 
 ## TODO improve docstrings (by which I mean add them)
+## TODO move command parser to its own function
+## TODO remove doubling in find_matches and make it run with positive/negative numbers
+## TODO write some unit tests
 
 BiometricData = namedtuple("BiometricData","hr_index nibp_index ecg_index data")
 
@@ -88,8 +91,7 @@ def find_header(data, flag):
 
 # channel 5 is NIBP, 40 is SBP, 14 is ECG, and 42 is HR.
 ## TODO Remove hr_channel if we definitely don't need it ##
-def process_csv(file, hr_channel = "CH42", nibp_channel = "CH5", 
-                            ecg_channel = "CH14"):
+def process_csv(file, hr_channel = "CH42", nibp_channel = "CH5", ecg_channel = "CH14"):
     try:
         f = open(file, "r")
     except IOError:
@@ -102,8 +104,6 @@ def process_csv(file, hr_channel = "CH42", nibp_channel = "CH5",
     header = search_list[header_location]
     search_list = search_list[header_location+2:-1]
     if(_verbose): print("Found header @ %s"%header_location)
-
-    
 
     for i, line in enumerate(search_list):
         # Convert items in list to floats
@@ -139,8 +139,6 @@ def find_spikes(bio_data, threshold = 1.5):
     # that max is the SBP for that interval
     # then use the index of that max to find the HR for the PREVIOUS SBP
     for line_num, line in enumerate(bio_data.data):
-        
-
         if(line[bio_data.ecg_index] >= threshold):
             if(look_for_b_spike == False):
                 if(_debug): print("Found spike A @ %s" % line_num)
@@ -153,8 +151,6 @@ def find_spikes(bio_data, threshold = 1.5):
                 if(_debug): print("Found spike B @ %s \n" % line_num)
 
                 sbp = max(nibp_search)
-                # print(search_list[spike_a_location + sbp_index])
-                #hr = float(search_list[spike_a_location + sbp_index][hr_index])
                 rr = line_num - spike_a_location
 
                 SBP.append(sbp)
@@ -168,7 +164,6 @@ def find_spikes(bio_data, threshold = 1.5):
         raise RuntimeError("SBP or RR appear empty; try changing the ECG threshold.")
     return (SBP, RR)    
 
-#findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
 def find_matches(SBP, RR, clusterWidth = 3, lag = 0):
     if(_verbose):
         print("RR length: "+str(len(RR)))
@@ -263,40 +258,45 @@ def correlate_runs(runs, minCorrelation = 0.75):
                 output.append(run)
     return output
 
+def main():
+    # Read input, find spikes
+    print("Reading input file...")
+    bio_data = process_csv(_fileName)
+    if(_debug): print("Processed CSV. bio_data: %s" % bio_data)
+    data = find_spikes(bio_data, _filter)
 
+    # Produce _raw file
+    output = ["SBP, RR"]
+    stuff = zip(data[0], data[1])
+    for a, b in stuff:
+        output.append(",".join([str(a),str(b)]))
+    f = open(_fileName[:-4]+"_raw.csv","w")
+    f.write("\n".join(output))
+    f.close()
 
+    # Match
+    print("Looking for matching runs...")
+    matchingRuns = find_matches(data[0],data[1], _width, _lag)
+    print("Found %s matching, non-correlated runs." % len(matchingRuns))
 
-print("Reading input file...")
-bio_data = process_csv(_fileName)
-data = find_spikes(bio_data, _filter)
+    # Correlate
+    print("Calculating correlation...")
+    correlatedRuns = correlate_runs(matchingRuns, _pearson)
+    print("Found %s correlated runs." % len(correlatedRuns))
+    if(_verbose):
+        print("Correlated runs: %s" % correlatedRuns)
 
-output = ["SBP, RR"]
-stuff = zip(data[0], data[1])
-for a, b in stuff:
-    output.append(",".join([str(a),str(b)]))
-f = open(_fileName[:-4]+"_raw.csv","w")
-f.write("\n".join(output))
-f.close()
+    # Write correlated file
+    f = open(_fileName[:-4]+"_correlated.csv","w")
+    output = ["SBP, RR"]
+    for run in matchingRuns:
+        zippedPairs = zip(run["SBP"], run["RR"])
+        for pair in zippedPairs:
+            output.append(str(pair[0]) + ", " + str(pair[1]))
+        output.append(",\n")
+    f.write("\n".join(output))
+    f.close()
+    print("Output written to %s." % _fileName[:-4]+"_correlated.csv")
 
-print("Looking for matching runs...")
-matchingRuns = find_matches(data[0],data[1], _width, _lag)
-print("> Found %s matching, non-correlated runs." % len(matchingRuns))
-print("Calculating correlation...")
-correlatedRuns = correlate_runs(matchingRuns, _pearson)
-
-print("> Found %s correlated runs." % len(correlatedRuns))
-if(_verbose):
-    print("Correlated runs: %s" % correlatedRuns)
-
-output_file = _fileName[:-4]+"_correlated.csv"
-
-f = open(output_file,"w")
-output = ["SBP, RR"]
-for run in matchingRuns:
-    zippedPairs = zip(run["SBP"], run["RR"])
-    for pair in zippedPairs:
-        output.append(str(pair[0]) + ", " + str(pair[1]))
-    output.append(",\n")
-f.write("\n".join(output))
-f.close()
-print("Output written to %s." % output_file)
+if __name__ == "__main__":
+    main()
