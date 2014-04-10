@@ -2,11 +2,9 @@
 import csv
 import sys
 import getopt
-from collections import namedtuple
 
 _verbose = False
 _fileName = ""
-_headerLength = 33
 _RR = "CH42"
 _SBP = "CH5"
 _ECG = "CH14"
@@ -21,9 +19,7 @@ _debug = False
 ## TODO improve docstrings (by which I mean add them)
 ## TODO move command parser to its own function
 ## TODO remove doubling in find_matches and make it run with positive/negative numbers
-## TODO turn the whole thing into a module
 ## TODO write some unit tests
-
 
 class FindSBRP:
     def __init__(self, file):
@@ -73,6 +69,11 @@ class FindSBRP:
         self.hr_index   = header.index(hr_channel)
         self.nibp_index = header.index(nibp_channel)
         self.ecg_index  = header.index(ecg_channel)
+
+        if(_debug): 
+            print("HR: %s" % self.hr_index)
+            print("NIBP: %s" % self.nibp_index)
+            print("ECG: %s" % self.ecg_index)
 
         for i, line in enumerate(search_list):
             # Convert items in list to floats
@@ -251,8 +252,6 @@ def main():
             _verbose = True
         elif opt in ("-i", "--input"):
             _fileName = arg
-        elif opt in ("-h", "--header"):
-            _headerLength = int(arg)
         elif opt in ("-r", "--hrchannel"):
             _RR = arg
         elif opt in ("-s", "--sbpchannel"):
