@@ -1,9 +1,8 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 import csv
 import sys
 import getopt
-import os
-import itertools
+from collections import namedtuple
 
 _verbose = False
 _fileName = ""
@@ -16,13 +15,15 @@ _pearson = 0.85
 _width = 3
 _lag = 0
 
-
 _debug = False
+
+
+BiometricData = namedtuple("BiometricData","hr_index nibp_index ecg_index data")
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hvi:d:r:s:e:f:p:w:l:",["input=",
-                        "header=","rrchannel=","sbpchannel=","ecgchannel=",
-                        "ecgfilter=","pearsonr=","clusterwidth=","lag="])
+                    "header=","rrchannel=","sbpchannel=","ecgchannel=",
+                    "ecgfilter=","pearsonr=","clusterwidth=","lag="])
 except getopt.GetoptError:
     sys.exit(2)
 for opt, arg in opts:
@@ -75,74 +76,99 @@ def pearsonR(x, y):
     if den == 0: return 0
     return num / den
 
-# channel 5 is NIBP, 40 is SBP, 14 is ECG and 42 is HR.
+def find_header(data, flag):
+    for i, line in enumerate(data):
+        for item in line:
+            if(flag in item):
+                return i
+    else:
+        return -1
 
-def processCSVFile(fileName, HRChannel = "CH42", NIBPChannel = "CH5", 
-                            ECGChannel = "CH14", ECGFilter = 1.5):
-    f = open(fileName, "r")
+# channel 5 is NIBP, 40 is SBP, 14 is ECG, and 42 is HR.
+## TODO Remove hr_channel if we definitely don't need it ##
+def process_csv(file, hr_channel = "CH42", nibp_channel = "CH5", 
+                            ecg_channel = "CH14"):
+    try:
+        f = open(file, "r")
+    except IOError:
+        print "Could not read \"%s\""%file
+
     csv_f = csv.reader(f,delimiter="\t")
     search_list = [line for line in csv_f]
+
+    header_location = find_header(search_list, "CH")
+    header = search_list[header_location]
+    search_list = search_list[header_location+2:-1]
+    if(_verbose): print("Found header @ %s"%header_location)
+
     
 
+    for i, line in enumerate(search_list):
+        # Convert items in list to floats
+        for j, item in enumerate(line):
+            try:
+                if(item.strip()):
+                    line[j] = float(item) 
+                else:
+                    # strip out whitespace at the end
+                    line = line[0:j]
+            except ValueError as detail:
+                print("ValueError on post-header line {0}, {1}: {2}. Interpretor: {3}".format(i, j, item, detail))
+                raise
+        search_list[i] = line
+    f.close()
+    return BiometricData(hr_index   = header.index(hr_channel),
+                         nibp_index = header.index(nibp_channel),
+                         ecg_index  = header.index(ecg_channel),
+                         data = search_list)
+
+# expects the BiometricData namedtuple
+def find_spikes(bio_data, threshold = 1.5):
     SBP = [-1] # start with something in the list so we can just append new RR intervals
     RR  = []
-    hr_index, nibp_index, ecg_index = 0, 0, 0
-    header_end  = 0
-    header_read = False
 
     spike_a_location = 0
-    spike_b_location = 0
     look_for_b_spike = False
     nibp_search = []
 
-    for line_num, line in enumerate(search_list):
-        if(ECGChannel in line):
-            header_end = line_num + 1
-            header_read = True
-            hr_index   = line.index(HRChannel)
-            nibp_index = line.index(NIBPChannel)
-            ecg_index  = line.index(ECGChannel)
-            if(_verbose):
-                print("ECG index @ %s" % ecg_index)
-                print("NIBP index @ %s" % nibp_index)
-                print("HR index @ %s" % hr_index)
+    # basically the idea is to find the first spike in the ECG (just look for it to exceed a threshold)
+    # then find the next spike
+    # use the indexes of those two as a window to look in the NIBP to find the max
+    # that max is the SBP for that interval
+    # then use the index of that max to find the HR for the PREVIOUS SBP
+    for line_num, line in enumerate(bio_data.data):
+        
 
-        if(line_num > header_end and header_read):
-            # basically the idea is to find the first spike in the ECG (just look for it to exceed a threshold)
-            # then find the next spike
-            # use the indexes of those two as a window to look in the NIBP to find the max
-            # that max is the SBP for that interval
-            # then use the index of that max to find the HR for the PREVIOUS SBP
-            if(float(line[ecg_index]) >= ECGFilter):
-                if(look_for_b_spike == False):
-                    if(_debug): print("Found spike A @ %s" % line_num)
+        if(line[bio_data.ecg_index] >= threshold):
+            if(look_for_b_spike == False):
+                if(_debug): print("Found spike A @ %s" % line_num)
 
-                    spike_a_location = line_num
-                    look_for_b_spike = True
-                    nibp_search.append(float(line[nibp_index]))
+                spike_a_location = line_num
+                look_for_b_spike = True
+                nibp_search.append(line[bio_data.nibp_index])
 
-                elif(look_for_b_spike == True and line_num > spike_a_location + 50):
-                    if(_debug): print("Found spike B @ %s \n" % line_num)
+            elif(look_for_b_spike == True and line_num > spike_a_location + 50):
+                if(_debug): print("Found spike B @ %s \n" % line_num)
 
-                    sbp = max(nibp_search)
-                    # print(search_list[spike_a_location + sbp_index])
-                    #hr = float(search_list[spike_a_location + sbp_index][hr_index])
-                    rr = line_num - spike_a_location
+                sbp = max(nibp_search)
+                # print(search_list[spike_a_location + sbp_index])
+                #hr = float(search_list[spike_a_location + sbp_index][hr_index])
+                rr = line_num - spike_a_location
 
-                    SBP.append(sbp)
-                    RR.append(rr)
+                SBP.append(sbp)
+                RR.append(rr)
 
-                    nibp_search = []
-                    look_for_b_spike = False
+                nibp_search = []
+                look_for_b_spike = False
 
-            if(look_for_b_spike): nibp_search.append(float(line[nibp_index]))
+        if(look_for_b_spike): nibp_search.append(line[bio_data.nibp_index])
 
-    f.close()
     return (SBP, RR)
+
     
 
 #findMatchingRuns: list-of-num, list-of-num, num, num --> list-of-list-of-num
-def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
+def find_matches(SBP, RR, clusterWidth = 3, lag = 0):
     if(_verbose):
         print("RR length: "+str(len(RR)))
         print("SBP length: "+str(len(SBP)))
@@ -219,8 +245,8 @@ def findMatchingRuns(SBP, RR, clusterWidth = 3, lag = 0):
 
     return [r for r in runs if len(r["RR"]) >= clusterWidth]
 
-#findCorrelatedRuns: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
-def findCorrelatedRuns(runs, minCorrelation = 0.75):
+#correlate_runs: list-of-dict-of-list-of-num, num --> list-of-dict-of-list-of-num
+def correlate_runs(runs, minCorrelation = 0.75):
     output = []
     for run in runs:
         # check to see if all of one column is identical
@@ -236,8 +262,12 @@ def findCorrelatedRuns(runs, minCorrelation = 0.75):
                 output.append(run)
     return output
 
+
+
+
 print("Reading input file...")
-data = processCSVFile(_fileName, ECGFilter = _filter)
+bio_data = process_csv(_fileName)
+data = find_spikes(bio_data, _filter)
 
 output = ["SBP, RR"]
 stuff = zip(data[0], data[1])
@@ -248,10 +278,10 @@ f.write("\n".join(output))
 f.close()
 
 print("Looking for matching runs...")
-matchingRuns = findMatchingRuns(data[0],data[1], _width, _lag)
+matchingRuns = find_matches(data[0],data[1], _width, _lag)
 print("> Found %s matching, non-correlated runs." % len(matchingRuns))
 print("Calculating correlation...")
-correlatedRuns = findCorrelatedRuns(matchingRuns, _pearson)
+correlatedRuns = correlate_runs(matchingRuns, _pearson)
 
 print("> Found %s correlated runs." % len(correlatedRuns))
 if(_verbose):
