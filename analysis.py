@@ -17,14 +17,10 @@ _lag = 0
 
 _debug = False
 
-## TODO figure out what's going on with S04LS 2
-## TODO strip whitespace from bottom of files
 ## TODO further abstract find_spikes so it can take in three lists instead of 
 ##      the weird input it uses now
 ## TODO improve docstrings (by which I mean add them)
 ## TODO move command parser to its own function
-## TODO remove doubling in find_matches and make it run with positive/negative 
-##      numbers
 ## TODO write some unit tests
 
 try:
